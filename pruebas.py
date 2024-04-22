@@ -42,12 +42,12 @@ def main():
     X = []
     fecha = []
     print("Empezamos")
-    for filename in glob.glob(f'./NDVIfotos/*.png'):
-        print(filename[17:-7])
+    for filename in glob.glob(f'../NDVIfotos/*.png'):
+        print(filename[18:-7])
         #im = preprocesar_imagen(filename)
         #X.append(image.img_to_array(im))
         # Dejamos de NDVI_2024-02-19_12_32_44 : 2024-02-19_12_32
-        fecha.append(filename[17:-7])
+        fecha.append(filename[18:-7])
 
 if __name__ == '__main__':
     main()

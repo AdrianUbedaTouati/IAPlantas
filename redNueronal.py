@@ -37,11 +37,15 @@ import cv2
 
 from PIL import Image
 
+import psycopg2
+from psycopg2 import Error
+
 #Entrenamiento
 batch_size = 64
 nb_classes = 3
 epochs = 50
 crossValidationSplit = 10
+tiempoIntervaloDatos = 5;
 # Scaling input image to theses dimensions
 img_rows, img_cols = 64, 64
 
@@ -51,17 +55,16 @@ resultadosROC = []
 
 def load_data():
     X = []
-    fecha = []
-    for filename in glob.glob(f'./NDVIfotos/*.png'):
+    fechas = []
+    for filename in glob.glob(f'../NDVIfotos/*.png'):
         # Dejamos de NDVI_2024-02-19_12_32_44 : 2024-02-19_12_32
-        fecha.append(filename[17:-7])
-        print(filename[17:-7])
+        fechas.append(filename[18:-4])
 
-        im = preprocesar_imagen(filename)
-        X.append(image.img_to_array(im))
+        #im = preprocesar_imagen(filename)
+        #X.append(image.img_to_array(im))
 
     input_shape = (img_rows, img_cols, 1)
-    return np.array(X), np.array(fecha), input_shape
+    return np.array(X), np.array(fechas), input_shape
 
 def preprocesar_imagen(imagen_path):
     # Cargar la imagen utilizando OpenCV
@@ -69,12 +72,12 @@ def preprocesar_imagen(imagen_path):
 
     imagenRGB = cv2.cvtColor(imagen, cv2.COLOR_BGR2RGB)
 
-    imagenFinal = imagenRGB.astype('float32') / 255.0
+    imagenNormalizada = imagenRGB.astype('float32') / 255.0
 
     # Realizar otras transformaciones si es necesario, como redimensionar, normalizar, etc.
-    #imagen_final = cv2.resize(imagen, (img_rows, img_cols))
+    imagen_final = cv2.resize(imagenNormalizada, (img_rows, img_cols))
 
-    return imagenFinal
+    return imagen_final
 
 def plot_symbols(X,y,n=15):
     print(y)
@@ -89,22 +92,59 @@ def plot_symbols(X,y,n=15):
         ax.get_yaxis().set_visible(False)
     plt.show()
 
+def obtenerFechaFormatoSQL(fechas):
+    dias = []
+    horas = []
+
+    sentenciasSql = []
+
+    for i in range(len(fechas)):
+        print(fechas[i])
+        dias.append(fechas[i][0:-9])
+        horas.append(fechas[i][11:])
+        print(dias[i])
+        print(horas[i])
+
+
+    for i in range(len(horas)):
+        horas[i] = horas[i].replace('_', ':')
+    print(horas)
+
+
+    for i in range(len(horas)):
+        sentenciasSql = dias[i] +" "+ horas[i]
+
+    return sentenciasSql
+
+def obtenerDatosIOT(fechasSql):
+    try:
+        conexion = psycopg2.connect(database = 'PlantasIA', user = 'postgres', password = "@Andriancito2012@")
+        cursor = conexion.cursor()
+        print("Datos extraidos:")
+        comando = "SELECT * FROM public.\"DatosIOT\""
+        cursor.execute(comando)
+        datos = cursor.fetchall()
+        print(datos)
+    except Error as e:
+        print("Error en la conexion: ",e)
+
+
 def cnn_model(input_shape, nb_classes):
     inputs = layers.Input(shape=input_shape)
     x = layers.Rescaling(1. / 255)(inputs)
 
-    x = layers.Conv2D(32, (3, 3), activation='relu')(x)
+    x = layers.Conv2D(64, (3, 3), activation='relu')(x)
     x = layers.MaxPooling2D(pool_size=(2, 2))(x)
 
-    x = layers.Conv2D(64, (3, 3), activation='relu')(x)
+    x = layers.Conv2D(128, (3, 3), activation='relu')(x)
     x = layers.MaxPooling2D(pool_size=(2, 2))(x)
 
     x = layers.Flatten()(x)
 
-    x = layers.Dense(128, activation='relu')(x)
+    x = layers.Dense(256, activation='relu')(x)
     x = layers.Dropout(0.2)(x)
 
-    x = layers.Dense(64, activation='relu')(x)
+    x = layers.Dense(128, activation='relu')(x)
     x = layers.Dropout(0.2)(x)
 
     outputs = layers.Dense(nb_classes, activation='softmax')(x)
@@ -129,7 +169,7 @@ def main():
     print(input_shape,'input_shape')
     print(epochs,'epochs')
 
-    plot_symbols(X, y)
+    #plot_symbols(X, y)
     collections.Counter(y)
 
     datagen = ImageDataGenerator(
@@ -140,6 +180,10 @@ def main():
         zoom_range=0.2,
         horizontal_flip=True,
         fill_mode='nearest')
+
+    obtenerDatosIOT(obtenerFechaFormatoSQL(y))
+
+
 
     """
     # CNN layer need an additional chanel to colors (32 x 32 x 1)
