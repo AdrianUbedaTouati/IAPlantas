@@ -4,6 +4,7 @@ import pandas as pd
 import glob
 import collections
 import matplotlib.pyplot as plt
+from datetime import datetime
 
 import sklearn
 from sklearn.model_selection import train_test_split, StratifiedKFold
@@ -53,9 +54,15 @@ nombreModelo = "modelo1_32x32"
 
 resultadosROC = []
 
+datosIOT = []
+
+datosIOTEntrenamiento = []
+
 def load_data():
     X = []
     fechas = []
+
+    print("Recogiendo datos")
     for filename in glob.glob(f'../NDVIfotos/*.png'):
         # Dejamos de NDVI_2024-02-19_12_32_44 : 2024-02-19_12_32
         fechas.append(filename[18:-4])
@@ -80,7 +87,6 @@ def preprocesar_imagen(imagen_path):
     return imagen_final
 
 def plot_symbols(X,y,n=15):
-    print(y)
     index = np.random.randint(len(y), size=n)
     plt.figure(figsize=(n, 3))
     for i in np.arange(n):
@@ -92,43 +98,84 @@ def plot_symbols(X,y,n=15):
         ax.get_yaxis().set_visible(False)
     plt.show()
 
-def obtenerFechaFormatoSQL(fechas):
+def obtenerFechaFormatoSQL(fechasSinProcesar):
     dias = []
     horas = []
 
-    sentenciasSql = []
+    fechasImagenes = []
 
-    for i in range(len(fechas)):
-        print(fechas[i])
-        dias.append(fechas[i][0:-9])
-        horas.append(fechas[i][11:])
-        print(dias[i])
-        print(horas[i])
+    for i in range(len(fechasSinProcesar)):
+        dias.append(fechasSinProcesar[i][0:-9])
+        horas.append(fechasSinProcesar[i][11:])
 
 
     for i in range(len(horas)):
         horas[i] = horas[i].replace('_', ':')
-    print(horas)
-
 
     for i in range(len(horas)):
-        sentenciasSql = dias[i] +" "+ horas[i]
+        # Separar la fecha en año, mes y día
+        anio = int(dias[i][0:4])
+        mes = int(dias[i][5:7])
+        dia = int(dias[i][8:10])
 
-    return sentenciasSql
+        # Separar la hora en hora, minuto y segundo
+        hora = int(horas[i][0:2])
+        minuto = int(horas[i][3:5])
+        segundo = int(horas[i][6:8])
 
-def obtenerDatosIOT(fechasSql):
+        fechasImagenes.append(datetime(anio, mes, dia, hora, minuto, segundo))
+
+    return fechasImagenes
+
+def obtenerDatosIOT():
+    global datosIOT
     try:
         conexion = psycopg2.connect(database = 'PlantasIA', user = 'postgres', password = "@Andriancito2012@")
         cursor = conexion.cursor()
         print("Datos extraidos:")
-        comando = "SELECT * FROM public.\"DatosIOT\""
+        comando = '''SELECT * FROM public."DatosIOT"
+	            where created_at >= '2024-02-19 12:30:00' and created_at <= '2024-03-11 12:00:00'
+            ORDER BY device_id, created_at, signal_id ASC '''
         cursor.execute(comando)
-        datos = cursor.fetchall()
-        print(datos)
+        datosIOT = cursor.fetchall()
     except Error as e:
         print("Error en la conexion: ",e)
 
 
+def fecha_mas_cercana(fecha, fechas):
+    diferencia_mas_cercana = None
+    fecha_mas_cercana = None
+
+    for f in fechas:
+        diferencia = abs(fecha - f)
+        if diferencia_mas_cercana is None or diferencia < diferencia_mas_cercana:
+            diferencia_mas_cercana = diferencia
+            fecha_mas_cercana = f
+
+    return fecha_mas_cercana
+
+
+def tupla_con_fecha_mas_cercana(elemento, array_de_tuplas):
+    diferencia_mas_cercana = None
+    tupla_mas_cercana = None
+
+    for tupla in array_de_tuplas:
+        fecha = tupla[4] #lugar donde esta la feha en la tupla
+        diferencia = abs(elemento - fecha)
+        if diferencia_mas_cercana is None or diferencia < diferencia_mas_cercana:
+            diferencia_mas_cercana = diferencia
+            tupla_mas_cercana = tupla
+
+    print(tupla_mas_cercana)
+    return tupla_mas_cercana
+
+
+def filtrarDatosIOT(fechasImagenes):
+    global datosIOTEntrenamiento
+    for i in range(len(fechasImagenes)):
+        print("fecha :",fechasImagenes[i])
+        datosIOTEntrenamiento.append(tupla_con_fecha_mas_cercana(fechasImagenes[i],datosIOT))
+        break
 def cnn_model(input_shape, nb_classes):
     inputs = layers.Input(shape=input_shape)
     x = layers.Rescaling(1. / 255)(inputs)
@@ -181,9 +228,11 @@ def main():
         horizontal_flip=True,
         fill_mode='nearest')
 
-    obtenerDatosIOT(obtenerFechaFormatoSQL(y))
+    fechasImagenes = obtenerFechaFormatoSQL(y)
 
+    obtenerDatosIOT()
 
+    filtrarDatosIOT(fechasImagenes)
 
     """
     # CNN layer need an additional chanel to colors (32 x 32 x 1)
