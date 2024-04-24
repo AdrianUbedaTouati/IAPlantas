@@ -214,14 +214,16 @@ def obtenerHumedadPerfecta(planta):
 
     humedadPerfectaPlanta = []
 
-    contador = 0
     for dato in planta:
         tuplasReferencia = tuplasAnteriores(dato[0][4],dias,planta)
-        print("Fecha referencia ",contador," ",dato[0][4])
-        print(tuplasReferencia)
-        contador = contador + 1
-        if contador == 3:
-            break
+        if (len(tuplasReferencia) == 0):
+            mejorTupla = dato
+        else:
+            tuplasListas = refinamientoDeTupla(tuplasReferencia)
+            print(tuplasListas)
+            mejorTupla = calcular_puntuacion(tuplasListas)
+            print(mejorTupla)
+            break;
 
 def tuplasAnteriores(fecha, dias, tuplas):
     fecha_limite = fecha - timedelta(days=dias)
@@ -237,26 +239,30 @@ def tuplasAnteriores(fecha, dias, tuplas):
 
 
 
+def refinamientoDeTupla(tuplas):
+    tuplasRefinadas = []
+    # Recorremos el array principal
+    for datos in tuplas:
+        tupla = []
+        # Recorremos cada tupla en el subarray y añadimos el tercer valor a la lista
+        for dato in datos:
+            tupla.append(dato[3])
 
+        # Convertimos la lista de terceros valores en una tupla
+        tuplasRefinadas.append(tuple(tupla[i] for i in (2, 4, 5, 6, 7, 8)))
 
+    return tuplasRefinadas
 
-def descartarTuplasDefectuosas(tuplas):
-    nivelMaximoHumedad = 70
-    nivelMinimoHumedad = 30
-
-
-
-    #Si no hay ni una tupla, error que busque en vez de 5 dias en 7 dias y asi
 
 def calcular_puntuacion(tuplas):
     # Calcula el valor máximo para cada posición
-    valores_maximos = [max(t[i] for t in tuplas) for i in range(5)]
+    valores_maximos = [max(t[i] for t in tuplas) for i in range(6)]
 
     # Calcula las puntuaciones para cada tupla
     puntuaciones = []
     for tupla in tuplas:
         puntuacion_tupla = 0
-        for i in range(5):
+        for i in range(6):
             # Calcula la puntuación para cada valor de la tupla
             if tupla[i] == valores_maximos[i]:
                 puntuacion_tupla += 1
@@ -270,6 +276,8 @@ def calcular_puntuacion(tuplas):
     mejor_puntuacion = max(puntuaciones)
     mejor_tupla_index = puntuaciones.index(mejor_puntuacion)
     mejor_tupla = tuplas[mejor_tupla_index]
+
+    print(mejor_puntuacion)
 
     return mejor_tupla
 

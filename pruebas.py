@@ -36,18 +36,24 @@ import shap
 import cv2
 
 from PIL import Image
-
+def obtener_valores(array_de_arrays):
+    valores = []
+    for subarray in array_de_arrays:
+        for i in [3, 5, 6, 7, 8, 9]:  # Solo las posiciones 3, 5, 6, 7, 8, 9
+            if 0 <= i < len(subarray):
+                valores.append(subarray[i])
+    return valores
 
 def main():
-    X = []
-    fecha = []
-    print("Empezamos")
-    for filename in glob.glob(f'../NDVIfotos/*.png'):
-        print(filename[18:-7])
-        #im = preprocesar_imagen(filename)
-        #X.append(image.img_to_array(im))
-        # Dejamos de NDVI_2024-02-19_12_32_44 : 2024-02-19_12_32
-        fecha.append(filename[18:-7])
+    # Ejemplo de uso:
+    array_de_arrays = [
+        [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+        [17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32],
+        [33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48]
+    ]
+
+    resultado = obtener_valores(array_de_arrays)
+    print(resultado)
 
 if __name__ == '__main__':
     main()
