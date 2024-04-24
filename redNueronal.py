@@ -4,7 +4,7 @@ import pandas as pd
 import glob
 import collections
 import matplotlib.pyplot as plt
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import sklearn
 from sklearn.model_selection import train_test_split, StratifiedKFold
@@ -47,8 +47,8 @@ nb_classes = 3
 epochs = 50
 crossValidationSplit = 10
 tiempoIntervaloDatos = 5;
-intervaloBusquedaMejorTupla = 10080
-# numero de tuplas = 5*12*24*7 = 10 080
+busquedaMejorTuplaDias = 5
+# numero de tuplas = 5(intervalo entre cada dato)*12( tranformacion a una hora)*24(a un dia)*5(a 5 dias)
 
 # Scaling input image to theses dimensions
 img_rows, img_cols = 64, 64
@@ -59,7 +59,10 @@ resultadosROC = []
 
 datosIOT = []
 
-datosIOTEntrenamiento = []
+datosIOTEntrenamientoImagenes = []
+
+datosOrdenadosPorPlantas = [[], [], [], [], []]  # Lista para cada planta y calidad del aire
+humedadIdealOrdenadaPorPlantas = [[], [], [], [], []] # Humedad ideal por cada tupla
 
 def load_data():
     X = []
@@ -101,7 +104,7 @@ def plot_symbols(X,y,n=15):
         ax.get_yaxis().set_visible(False)
     plt.show()
 
-def obtenerFechaFormatoSQL(fechasSinProcesar):
+def obtenerFechaImagenesFormatoSQL(fechasSinProcesar):
     dias = []
     horas = []
 
@@ -156,7 +159,6 @@ def fecha_mas_cercana(fecha, fechas):
 
     return fecha_mas_cercana
 
-
 def tupla_con_fecha_mas_cercana(elemento, array_de_tuplas):
     diferencia_mas_cercana = None
     tupla_mas_cercana = None
@@ -170,27 +172,11 @@ def tupla_con_fecha_mas_cercana(elemento, array_de_tuplas):
 
     return tupla_mas_cercana
 
-def dividrDatosIOTporPlanta():
-    datosOrdenados = [[], [], [], [], []]  # Lista para cada planta y calidad del aire
-
-    contador = 0
-
-    lecturaCompleta = []
-    for datoIOT in datosIOT:
-        contador = contador + 1
-        planta = datoIOT[1]
-        lecturaCompleta.append(datoIOT)
-        if (contador == 16 and planta != 5) or (contador == 11 and planta == 5):
-            datosOrdenados[planta - 1].append(lecturaCompleta)
-            lecturaCompleta = []
-            contador = 0
-
-
-def filtrarDatosIOT(fechasImagenes):
-    global datosIOTEntrenamiento
+def filtrarDatosIOTparaImagenes(fechasImagenes):
+    global datosIOTEntrenamientoImagenes
     for i in range(len(fechasImagenes)):
         print("fecha :",fechasImagenes[i])
-        datosIOTEntrenamiento.append(tupla_con_fecha_mas_cercana(fechasImagenes[i],datosIOT))
+        datosIOTEntrenamientoImagenes.append(tupla_con_fecha_mas_cercana(fechasImagenes[i],datosIOT))
         break
 
 #Buscar en la ultima semana de datos
@@ -200,13 +186,67 @@ def filtrarDatosIOT(fechasImagenes):
 #def mejorTupla(fechaActual):
     #Sistema de recompensa
 
+def dividrDatosIOTporPlanta():
+    global datosOrdenadosPorPlantas
+
+    contador = 0
+
+    lecturaCompleta = []
+    for datoIOT in datosIOT:
+        contador = contador + 1
+        planta = datoIOT[1]
+        lecturaCompleta.append(datoIOT)
+        if (contador == 16 and planta != 5) or (contador == 11 and planta == 5):
+            datosOrdenadosPorPlantas[planta - 1].append(lecturaCompleta)
+            lecturaCompleta = []
+            contador = 0
+
+def asignarHumedadPerfecta():
+    global humedadIdealOrdenadaPorPlantas
+
+    for i in range(len(datosOrdenadosPorPlantas)-1):
+        humedadIdealOrdenadaPorPlantas[i] = obtenerHumedadPerfecta(datosOrdenadosPorPlantas[i])
+        break
+
+def obtenerHumedadPerfecta(planta):
+    global busquedaMejorTuplaDias
+    dias = busquedaMejorTuplaDias
+
+    humedadPerfectaPlanta = []
+
+    contador = 0
+    for dato in planta:
+        tuplasReferencia = tuplasAnteriores(dato[0][4],dias,planta)
+        print("Fecha referencia ",contador," ",dato[0][4])
+        print(tuplasReferencia)
+        contador = contador + 1
+        if contador == 3:
+            break
+
+def tuplasAnteriores(fecha, dias, tuplas):
+    fecha_limite = fecha - timedelta(days=dias)
+    tuplas_posteriores = []
+
+    for tupla in tuplas:
+        if fecha_limite < tupla[0][4] < fecha:
+            tuplas_posteriores.append(tupla)
+        else:
+            break
+
+    return tuplas_posteriores
 
 
-def descartarTuplas(tuplas):
+
+
+
+
+def descartarTuplasDefectuosas(tuplas):
     nivelMaximoHumedad = 70
     nivelMinimoHumedad = 30
 
-    #Si no hay ni una tupla, error
+
+
+    #Si no hay ni una tupla, error que busque en vez de 5 dias en 7 dias y asi
 
 def calcular_puntuacion(tuplas):
     # Calcula el valor máximo para cada posición
@@ -285,13 +325,15 @@ def main():
         horizontal_flip=True,
         fill_mode='nearest')
 
-    fechasImagenes = obtenerFechaFormatoSQL(y)
+    fechasImagenes = obtenerFechaImagenesFormatoSQL(y)
 
     obtenerDatosIOT()
 
-    filtrarDatosIOT(fechasImagenes)
+    filtrarDatosIOTparaImagenes(fechasImagenes)
 
     dividrDatosIOTporPlanta()
+
+    asignarHumedadPerfecta()
 
     """
     # CNN layer need an additional chanel to colors (32 x 32 x 1)
