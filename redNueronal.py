@@ -47,6 +47,9 @@ nb_classes = 3
 epochs = 50
 crossValidationSplit = 10
 tiempoIntervaloDatos = 5;
+intervaloBusquedaMejorTupla = 10080
+# numero de tuplas = 5*12*24*7 = 10 080
+
 # Scaling input image to theses dimensions
 img_rows, img_cols = 64, 64
 
@@ -132,7 +135,7 @@ def obtenerDatosIOT():
     try:
         conexion = psycopg2.connect(database = 'PlantasIA', user = 'postgres', password = "@Andriancito2012@")
         cursor = conexion.cursor()
-        print("Datos extraidos:")
+        print("Extrayendo Datos:")
         comando = '''SELECT * FROM public."DatosIOT"
 	            where created_at >= '2024-02-19 12:30:00' and created_at <= '2024-03-11 12:00:00'
             ORDER BY device_id, created_at, signal_id ASC '''
@@ -140,7 +143,6 @@ def obtenerDatosIOT():
         datosIOT = cursor.fetchall()
     except Error as e:
         print("Error en la conexion: ",e)
-
 
 def fecha_mas_cercana(fecha, fechas):
     diferencia_mas_cercana = None
@@ -166,8 +168,49 @@ def tupla_con_fecha_mas_cercana(elemento, array_de_tuplas):
             diferencia_mas_cercana = diferencia
             tupla_mas_cercana = tupla
 
-    print(tupla_mas_cercana)
     return tupla_mas_cercana
+
+def dividrDatosIOTporPlanta():
+    datosOrdenados = [[], [], [], [], []]  # Lista para cada planta y calidad del aire
+
+    contador = 0
+
+    lecturaCompleta = []
+    for datoIOT in datosIOT:
+        contador = contador + 1
+        planta = datoIOT[1]
+        lecturaCompleta.append(datoIOT)
+        if contador == 16:
+            datosOrdenados[planta - 1].append(lecturaCompleta)
+            lecturaCompleta = []
+            contador = 0
+
+
+    print(len(datosOrdenados[0]))
+    print(len(datosOrdenados[1]))
+    print(len(datosOrdenados[2]))
+    print(len(datosOrdenados[3]))
+    print(len(datosOrdenados[4]))
+
+    print("Planta 1")
+    print(datosOrdenados[0][0])
+    print(datosOrdenados[0][-1])
+
+    print("Planta 2")
+    print(datosOrdenados[1][0])
+    print(datosOrdenados[1][-1])
+
+    print("Planta 3")
+    print(datosOrdenados[2][0])
+    print(datosOrdenados[2][-1])
+
+    print("Planta 4")
+    print(datosOrdenados[3][0])
+    print(datosOrdenados[3][-1])
+
+    print("Planta 5")
+    print(datosOrdenados[4][0])
+    print(datosOrdenados[4][-1])
 
 
 def filtrarDatosIOT(fechasImagenes):
@@ -176,6 +219,47 @@ def filtrarDatosIOT(fechasImagenes):
         print("fecha :",fechasImagenes[i])
         datosIOTEntrenamiento.append(tupla_con_fecha_mas_cercana(fechasImagenes[i],datosIOT))
         break
+
+#Buscar en la ultima semana de datos
+#Cada tupla se registra cada 5 m
+# numero de tuplas = 5*12*24*7 = 10 080
+
+#def mejorTupla(fechaActual):
+    #Sistema de recompensa
+
+
+
+def descartarTuplas(tuplas):
+    nivelMaximoHumedad = 70
+    nivelMinimoHumedad = 30
+
+    #Si no hay ni una tupla, error
+
+def calcular_puntuacion(tuplas):
+    # Calcula el valor máximo para cada posición
+    valores_maximos = [max(t[i] for t in tuplas) for i in range(5)]
+
+    # Calcula las puntuaciones para cada tupla
+    puntuaciones = []
+    for tupla in tuplas:
+        puntuacion_tupla = 0
+        for i in range(5):
+            # Calcula la puntuación para cada valor de la tupla
+            if tupla[i] == valores_maximos[i]:
+                puntuacion_tupla += 1
+            else:
+                porcentaje = 1 - abs(tupla[i] - valores_maximos[i]) / valores_maximos[i]
+                puntuacion_tupla += porcentaje
+        # Añade la puntuación de la tupla a la lista de puntuaciones
+        puntuaciones.append(puntuacion_tupla)
+
+    # Encuentra la mejor tupla basada en las puntuaciones
+    mejor_puntuacion = max(puntuaciones)
+    mejor_tupla_index = puntuaciones.index(mejor_puntuacion)
+    mejor_tupla = tuplas[mejor_tupla_index]
+
+    return mejor_tupla
+
 def cnn_model(input_shape, nb_classes):
     inputs = layers.Input(shape=input_shape)
     x = layers.Rescaling(1. / 255)(inputs)
@@ -233,6 +317,8 @@ def main():
     obtenerDatosIOT()
 
     filtrarDatosIOT(fechasImagenes)
+
+    dividrDatosIOTporPlanta()
 
     """
     # CNN layer need an additional chanel to colors (32 x 32 x 1)
