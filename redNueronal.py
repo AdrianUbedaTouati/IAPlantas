@@ -180,37 +180,10 @@ def dividrDatosIOTporPlanta():
         contador = contador + 1
         planta = datoIOT[1]
         lecturaCompleta.append(datoIOT)
-        if contador == 16:
+        if (contador == 16 and planta != 5) or (contador == 11 and planta == 5):
             datosOrdenados[planta - 1].append(lecturaCompleta)
             lecturaCompleta = []
             contador = 0
-
-
-    print(len(datosOrdenados[0]))
-    print(len(datosOrdenados[1]))
-    print(len(datosOrdenados[2]))
-    print(len(datosOrdenados[3]))
-    print(len(datosOrdenados[4]))
-
-    print("Planta 1")
-    print(datosOrdenados[0][0])
-    print(datosOrdenados[0][-1])
-
-    print("Planta 2")
-    print(datosOrdenados[1][0])
-    print(datosOrdenados[1][-1])
-
-    print("Planta 3")
-    print(datosOrdenados[2][0])
-    print(datosOrdenados[2][-1])
-
-    print("Planta 4")
-    print(datosOrdenados[3][0])
-    print(datosOrdenados[3][-1])
-
-    print("Planta 5")
-    print(datosOrdenados[4][0])
-    print(datosOrdenados[4][-1])
 
 
 def filtrarDatosIOT(fechasImagenes):
