@@ -223,7 +223,6 @@ def obtenerHumedadPerfecta(planta):
             print(tuplasListas)
             mejorTupla = calcular_puntuacion(tuplasListas)
             print(mejorTupla)
-            break;
 
 def tuplasAnteriores(fecha, dias, tuplas):
     fecha_limite = fecha - timedelta(days=dias)
@@ -237,8 +236,6 @@ def tuplasAnteriores(fecha, dias, tuplas):
 
     return tuplas_posteriores
 
-
-
 def refinamientoDeTupla(tuplas):
     tuplasRefinadas = []
     # Recorremos el array principal
@@ -251,8 +248,9 @@ def refinamientoDeTupla(tuplas):
         # Convertimos la lista de terceros valores en una tupla
         tuplasRefinadas.append(tuple(tupla[i] for i in (2, 4, 5, 6, 7, 8)))
 
-    return tuplasRefinadas
+    array_convertido = [(float(a), float(b), float(c), float(d), float(e), float(f)) for a, b, c, d, e, f in tuplasRefinadas]
 
+    return array_convertido
 
 def calcular_puntuacion(tuplas):
     # Calcula el valor máximo para cada posición

@@ -45,15 +45,13 @@ def obtener_valores(array_de_arrays):
     return valores
 
 def main():
-    # Ejemplo de uso:
-    array_de_arrays = [
-        [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
-        [17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32],
-        [33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48]
-    ]
+    # Array con tuplas que contienen números en formato texto
+    array_original = [('2', '3'), ('5', '8'), ('10', '15')]
 
-    resultado = obtener_valores(array_de_arrays)
-    print(resultado)
+    # Convertir los números en las tuplas de formato texto a enteros
+    array_convertido = [(int(x), int(y)) for x, y in array_original]
+
+    print(array_convertido)
 
 if __name__ == '__main__':
     main()
