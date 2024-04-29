@@ -46,7 +46,6 @@ batch_size = 64
 nb_classes = 3
 epochs = 50
 crossValidationSplit = 10
-tiempoIntervaloDatos = 5
 busquedaMejorTuplaDias = 3
 # numero de tuplas = 5(intervalo entre cada dato)*12( tranformacion a una hora)*24(a un dia)*5(a 5 dias)
 
@@ -213,6 +212,7 @@ def obtenerHumedadPerfecta(planta):
     dias = busquedaMejorTuplaDias
 
     humedadPerfectaPlanta = []
+    humedadMasGrandeDato = []
 
     contador = 0
     for dato in planta:
@@ -220,23 +220,28 @@ def obtenerHumedadPerfecta(planta):
         contador = contador + 1
 
         tuplasReferencia = tuplasAnteriores(dato[0][4],dias,planta)
-        print("Tuplas refenriacia longitud: "+str(len(tuplasReferencia))+ " contenido dato: " +str(dato[0])+ " dias: "+str(dias))
+        #print("Tuplas refenriacia longitud: "+str(len(tuplasReferencia))+ " contenido dato: " +str(dato[0])+ " dias: "+str(dias))
         if (len(tuplasReferencia) == 0):
             mejorTupla = dato
         else:
-            if contador == 4858:
-                print("error")
+            max_humedad = 0
+            for tupla in tuplasReferencia:
+                if float(tupla[0][3]) > max_humedad:
+                    max_humedad = float(tupla[0][3])
+
+            #print(max_humedad)
+            humedadMasGrandeDato.append(max_humedad)
             tuplasListas = refinamientoDeTupla(tuplasReferencia)
-            print(dato)
-            print(tuplasListas)
+            #print(dato)
+            #print(tuplasListas)
             mejorTupla = calcular_puntuacion(tuplasListas)
             humedadPerfectaPlanta.append(mejorTupla[6])
-            if contador == 10:
-                break
 
-        print(len(humedadPerfectaPlanta))
-        print(humedadPerfectaPlanta)
+    print(len(humedadPerfectaPlanta))
+    print(humedadPerfectaPlanta)
 
+    print(len(humedadMasGrandeDato))
+    print(humedadMasGrandeDato)
 
 
 def tuplasAnteriores(fecha, dias, tuplas):
