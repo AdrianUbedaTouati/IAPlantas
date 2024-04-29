@@ -50,7 +50,7 @@ batch_size = 64
 nb_classes = 3
 epochs = 50
 crossValidationSplit = 10
-busquedaMejorTuplaDias = 7
+busquedaMejorTuplaDias = 1000
 # numero de tuplas = 5(intervalo entre cada dato)*12( tranformacion a una hora)*24(a un dia)*5(a 5 dias)
 
 # Scaling input image to theses dimensions
