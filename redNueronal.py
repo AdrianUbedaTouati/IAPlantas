@@ -46,8 +46,8 @@ batch_size = 64
 nb_classes = 3
 epochs = 50
 crossValidationSplit = 10
-tiempoIntervaloDatos = 5;
-busquedaMejorTuplaDias = 5
+tiempoIntervaloDatos = 5
+busquedaMejorTuplaDias = 3
 # numero de tuplas = 5(intervalo entre cada dato)*12( tranformacion a una hora)*24(a un dia)*5(a 5 dias)
 
 # Scaling input image to theses dimensions
@@ -140,8 +140,8 @@ def obtenerDatosIOT():
         cursor = conexion.cursor()
         print("Extrayendo Datos:")
         comando = '''SELECT * FROM public."DatosIOT"
-	            where created_at >= '2024-02-19 12:30:00' and created_at <= '2024-03-11 12:00:00'
-            ORDER BY device_id, created_at, signal_id ASC '''
+	            where date >= '2024-02-19 12:30:00' and date <= '2024-03-11 12:00:00'
+            ORDER BY device_id, date, signal_id ASC '''
         cursor.execute(comando)
         datosIOT = cursor.fetchall()
     except Error as e:
@@ -214,15 +214,30 @@ def obtenerHumedadPerfecta(planta):
 
     humedadPerfectaPlanta = []
 
+    contador = 0
     for dato in planta:
+        print(contador)
+        contador = contador + 1
+
         tuplasReferencia = tuplasAnteriores(dato[0][4],dias,planta)
+        print("Tuplas refenriacia longitud: "+str(len(tuplasReferencia))+ " contenido dato: " +str(dato[0])+ " dias: "+str(dias))
         if (len(tuplasReferencia) == 0):
             mejorTupla = dato
         else:
+            if contador == 4858:
+                print("error")
             tuplasListas = refinamientoDeTupla(tuplasReferencia)
+            print(dato)
             print(tuplasListas)
             mejorTupla = calcular_puntuacion(tuplasListas)
-            print(mejorTupla)
+            humedadPerfectaPlanta.append(mejorTupla[6])
+            if contador == 10:
+                break
+
+        print(len(humedadPerfectaPlanta))
+        print(humedadPerfectaPlanta)
+
+
 
 def tuplasAnteriores(fecha, dias, tuplas):
     fecha_limite = fecha - timedelta(days=dias)
@@ -231,8 +246,7 @@ def tuplasAnteriores(fecha, dias, tuplas):
     for tupla in tuplas:
         if fecha_limite < tupla[0][4] < fecha:
             tuplas_posteriores.append(tupla)
-        else:
-            break
+
 
     return tuplas_posteriores
 
@@ -246,9 +260,9 @@ def refinamientoDeTupla(tuplas):
             tupla.append(dato[3])
 
         # Convertimos la lista de terceros valores en una tupla
-        tuplasRefinadas.append(tuple(tupla[i] for i in (2, 4, 5, 6, 7, 8)))
+        tuplasRefinadas.append(tuple(tupla[i] for i in (2, 4, 5, 6, 7, 8, 0)))
 
-    array_convertido = [(float(a), float(b), float(c), float(d), float(e), float(f)) for a, b, c, d, e, f in tuplasRefinadas]
+    array_convertido = [(float(a), float(b), float(c), float(d), float(e), float(f), float(g)) for a, b, c, d, e, f, g in tuplasRefinadas]
 
     return array_convertido
 
