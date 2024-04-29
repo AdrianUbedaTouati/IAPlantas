@@ -4,7 +4,11 @@ import pandas as pd
 import glob
 import collections
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 from datetime import datetime, timedelta
+import calendar, locale
+
+locale.setlocale(locale.LC_ALL,'es_ES')
 
 import sklearn
 from sklearn.model_selection import train_test_split, StratifiedKFold
@@ -46,7 +50,7 @@ batch_size = 64
 nb_classes = 3
 epochs = 50
 crossValidationSplit = 10
-busquedaMejorTuplaDias = 3
+busquedaMejorTuplaDias = 7
 # numero de tuplas = 5(intervalo entre cada dato)*12( tranformacion a una hora)*24(a un dia)*5(a 5 dias)
 
 # Scaling input image to theses dimensions
@@ -174,9 +178,8 @@ def tupla_con_fecha_mas_cercana(elemento, array_de_tuplas):
 def filtrarDatosIOTparaImagenes(fechasImagenes):
     global datosIOTEntrenamientoImagenes
     for i in range(len(fechasImagenes)):
-        print("fecha :",fechasImagenes[i])
+        #print("fecha :",fechasImagenes[i])
         datosIOTEntrenamientoImagenes.append(tupla_con_fecha_mas_cercana(fechasImagenes[i],datosIOT))
-        break
 
 #Buscar en la ultima semana de datos
 #Cada tupla se registra cada 5 m
@@ -204,19 +207,19 @@ def asignarHumedadPerfecta():
     global humedadIdealOrdenadaPorPlantas
 
     for i in range(len(datosOrdenadosPorPlantas)-1):
-        humedadIdealOrdenadaPorPlantas[i] = obtenerHumedadPerfecta(datosOrdenadosPorPlantas[i])
-        break
+        print(f"Planta {i+1} procensado")
+        humedadIdealOrdenadaPorPlantas[i] = obtenerHumedadPerfecta(datosOrdenadosPorPlantas[i],i)
 
-def obtenerHumedadPerfecta(planta):
+def obtenerHumedadPerfecta(planta,indicePlanta):
     global busquedaMejorTuplaDias
     dias = busquedaMejorTuplaDias
 
     humedadPerfectaPlanta = []
     humedadMasGrandeDato = []
+    fechaDeCadaDato = []
 
     contador = 0
     for dato in planta:
-        print(contador)
         contador = contador + 1
 
         tuplasReferencia = tuplasAnteriores(dato[0][4],dias,planta)
@@ -229,6 +232,8 @@ def obtenerHumedadPerfecta(planta):
                 if float(tupla[0][3]) > max_humedad:
                     max_humedad = float(tupla[0][3])
 
+            fechaDeCadaDato.append(dato[0][4])
+
             #print(max_humedad)
             humedadMasGrandeDato.append(max_humedad)
             tuplasListas = refinamientoDeTupla(tuplasReferencia)
@@ -237,11 +242,54 @@ def obtenerHumedadPerfecta(planta):
             mejorTupla = calcular_puntuacion(tuplasListas)
             humedadPerfectaPlanta.append(mejorTupla[6])
 
-    print(len(humedadPerfectaPlanta))
-    print(humedadPerfectaPlanta)
+    #print(len(humedadPerfectaPlanta))
+    #print(humedadPerfectaPlanta)
 
-    print(len(humedadMasGrandeDato))
-    print(humedadMasGrandeDato)
+    #print(len(humedadMasGrandeDato))
+    #print(humedadMasGrandeDato)
+
+    #print(fechaDeCadaDato)
+
+    # Crear el gráfico
+    plt.plot(humedadPerfectaPlanta, label='Humedad perfecta', marker='o', color='blue')  # Puntos de array1
+    plt.plot(humedadMasGrandeDato, label='Humedad mas grande disponible', marker='o', color='red')  # Puntos de array2
+
+    # Añadir título y etiquetas
+    plt.title('Humedad mayor posible frente a la "Humedad perfecta"')
+    plt.xlabel('Indice array')
+    plt.ylabel('Humedad')
+
+    plt.savefig(f"Graficas/Rango_{dias}_dias_comparacion_humedades_planta_{indicePlanta+1}.png")
+
+    # Mostrar leyenda
+    plt.legend()
+
+    # Mostrar el gráfico
+    plt.show()
+
+    """
+        #Graficas con las fechas
+        fig, ax = plt.subplots()
+
+        # Graficar
+        ax.plot(fechaDeCadaDato,humedadPerfectaPlanta, label='Array 1', marker='o', color='blue')  # Puntos de array1
+        ax.plot(fechaDeCadaDato,humedadMasGrandeDato, label='Array 2', marker='o', color='red')  # Puntos de array2
+        ax.set_xlabel('Fechas')
+        ax.set_ylabel('Humedad')
+        ax.set_title('Humedad en función de las fechas')
+
+        # Configurar el formato automático de fechas en el eje x
+        locator = mdates.AutoDateLocator()
+        formatter = mdates.AutoDateFormatter(locator)
+        ax.xaxis.set_major_locator(locator)
+        ax.xaxis.set_major_formatter(formatter)
+        fig.autofmt_xdate()  # Rotar las fechas para mejor visualización
+
+        plt.tight_layout()  # Ajustar diseño
+        plt.show()
+        """
+
+    return humedadPerfectaPlanta
 
 
 def tuplasAnteriores(fecha, dias, tuplas):
@@ -293,8 +341,6 @@ def calcular_puntuacion(tuplas):
     mejor_puntuacion = max(puntuaciones)
     mejor_tupla_index = puntuaciones.index(mejor_puntuacion)
     mejor_tupla = tuplas[mejor_tupla_index]
-
-    print(mejor_puntuacion)
 
     return mejor_tupla
 
