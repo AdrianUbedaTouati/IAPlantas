@@ -50,7 +50,7 @@ batch_size = 64
 nb_classes = 3
 epochs = 50
 crossValidationSplit = 10
-busquedaMejorTuplaDias = 1000
+busquedaMejorTuplaDias = 3
 # numero de tuplas = 5(intervalo entre cada dato)*12( tranformacion a una hora)*24(a un dia)*5(a 5 dias)
 
 # Scaling input image to theses dimensions
@@ -71,17 +71,43 @@ def load_data():
     X = []
     fechas = []
 
-    print("Recogiendo datos")
+    print("-Procensado imagenes")
+
     for filename in glob.glob(f'../NDVIfotos/*.png'):
         # Dejamos de NDVI_2024-02-19_12_32_44 : 2024-02-19_12_32
         fechas.append(filename[18:-4])
 
-        #im = preprocesar_imagen(filename)
-        #X.append(image.img_to_array(im))
+        im = preprocesar_imagen(filename)
+        X.append(image.img_to_array(im))
 
     input_shape = (img_rows, img_cols, 1)
     return np.array(X), np.array(fechas), input_shape
 
+def preprocesar_imagen(imagen_path):
+    # Cargar la imagen utilizando OpenCV
+    imagen = cv2.imread(imagen_path)
+
+    # Convertir la imagen a escala de grises
+    imagen_gris = cv2.cvtColor(imagen, cv2.COLOR_BGR2GRAY)
+
+    alpha = 1.3  # factor de contraste
+    beta = -80    # factor de brillo
+    imagen_ajustada = cv2.convertScaleAbs(imagen_gris, alpha=alpha, beta=beta)
+    # Aplicar umbralización
+    #_, imagen_umbralizada = cv2.threshold(imagen_ajustada, 127, 255, cv2.THRESH_BINARY)
+
+    # Aplicar desenfoque
+    #imagen_desenfocada = cv2.GaussianBlur(imagen_umbralizada, (5, 5), 0)
+
+    # Aplicar ecualización del histograma
+    #imagen_ecualizada = cv2.equalizeHist(imagen_desenfocada)
+
+    # Realizar otras transformaciones si es necesario, como redimensionar, normalizar, etc.
+    imagen_final = cv2.resize(imagen_ajustada, (img_rows, img_cols), interpolation=cv2.INTER_AREA)
+
+    return imagen_final
+
+"""
 def preprocesar_imagen(imagen_path):
     # Cargar la imagen utilizando OpenCV
     imagen = cv2.imread(imagen_path)
@@ -94,14 +120,17 @@ def preprocesar_imagen(imagen_path):
     imagen_final = cv2.resize(imagenNormalizada, (img_rows, img_cols))
 
     return imagen_final
+"""
 
 def plot_symbols(X,y,n=15):
     index = np.random.randint(len(y), size=n)
     plt.figure(figsize=(n, 3))
+    print(X)
+    SystemExit(0)
     for i in np.arange(n):
         ax = plt.subplot(1,n,i+1)
         plt.imshow(X[index[i]])
-        #plt.gray()
+        plt.gray()
         ax.set_title('{}-{}'.format(y[index[i]],index[i]))
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)
@@ -137,6 +166,7 @@ def obtenerFechaImagenesFormatoSQL(fechasSinProcesar):
     return fechasImagenes
 
 def obtenerDatosIOT():
+    print("-Procensado datos IOT")
     global datosIOT
     try:
         conexion = psycopg2.connect(database = 'PlantasIA', user = 'postgres', password = "@Andriancito2012@")
@@ -203,12 +233,16 @@ def dividrDatosIOTporPlanta():
             lecturaCompleta = []
             contador = 0
 
+    return datosOrdenadosPorPlantas
+
 def asignarHumedadPerfecta():
     global humedadIdealOrdenadaPorPlantas
 
     for i in range(len(datosOrdenadosPorPlantas)-1):
-        print(f"Planta {i+1} procensado")
+        print(f"Planta {i+1} procensando...")
         humedadIdealOrdenadaPorPlantas[i] = obtenerHumedadPerfecta(datosOrdenadosPorPlantas[i],i)
+
+    return humedadIdealOrdenadaPorPlantas
 
 def obtenerHumedadPerfecta(planta,indicePlanta):
     global busquedaMejorTuplaDias
@@ -223,9 +257,12 @@ def obtenerHumedadPerfecta(planta,indicePlanta):
         contador = contador + 1
 
         tuplasReferencia = tuplasAnteriores(dato[0][4],dias,planta)
-        #print("Tuplas refenriacia longitud: "+str(len(tuplasReferencia))+ " contenido dato: " +str(dato[0])+ " dias: "+str(dias))
         if (len(tuplasReferencia) == 0):
-            mejorTupla = dato
+            tuplasReferencia.append(dato)
+            tuplasListas = refinamientoDeTupla(tuplasReferencia)
+            mejorTupla = calcular_puntuacion(tuplasListas)
+
+            humedadPerfectaPlanta.append(mejorTupla[6])
         else:
             max_humedad = 0
             for tupla in tuplasReferencia:
@@ -234,23 +271,20 @@ def obtenerHumedadPerfecta(planta,indicePlanta):
 
             fechaDeCadaDato.append(dato[0][4])
 
-            #print(max_humedad)
             humedadMasGrandeDato.append(max_humedad)
+
             tuplasListas = refinamientoDeTupla(tuplasReferencia)
-            #print(dato)
-            #print(tuplasListas)
             mejorTupla = calcular_puntuacion(tuplasListas)
+
             humedadPerfectaPlanta.append(mejorTupla[6])
 
-    #print(len(humedadPerfectaPlanta))
     #print(humedadPerfectaPlanta)
 
-    #print(len(humedadMasGrandeDato))
-    #print(humedadMasGrandeDato)
+    #crearGraficasHumedad(humedadPerfectaPlanta,humedadMasGrandeDato,indicePlanta,dias,fechaDeCadaDato)
 
-    #print(fechaDeCadaDato)
+    return humedadPerfectaPlanta
 
-    # Crear el gráfico
+def crearGraficasHumedad(humedadPerfectaPlanta,humedadMasGrandeDato,indicePlanta,dias,fechaDeCadaDato):
     plt.plot(humedadPerfectaPlanta, label='Humedad perfecta', marker='o', color='blue')  # Puntos de array1
     plt.plot(humedadMasGrandeDato, label='Humedad mas grande disponible', marker='o', color='red')  # Puntos de array2
 
@@ -259,7 +293,7 @@ def obtenerHumedadPerfecta(planta,indicePlanta):
     plt.xlabel('Indice array')
     plt.ylabel('Humedad')
 
-    plt.savefig(f"Graficas/Rango_{dias}_dias_comparacion_humedades_planta_{indicePlanta+1}.png")
+    plt.savefig(f"Graficas/Rango_{dias}_dias_comparacion_humedades_planta_{indicePlanta + 1}.png")
 
     # Mostrar leyenda
     plt.legend()
@@ -272,8 +306,8 @@ def obtenerHumedadPerfecta(planta,indicePlanta):
         fig, ax = plt.subplots()
 
         # Graficar
-        ax.plot(fechaDeCadaDato,humedadPerfectaPlanta, label='Array 1', marker='o', color='blue')  # Puntos de array1
-        ax.plot(fechaDeCadaDato,humedadMasGrandeDato, label='Array 2', marker='o', color='red')  # Puntos de array2
+        ax.plot(fechaDeCadaDato,humedadPerfectaPlanta, label='Array 1', color='blue')  # Puntos de array1
+        ax.plot(fechaDeCadaDato,humedadMasGrandeDato, label='Array 2',  color='red')  # Puntos de array2
         ax.set_xlabel('Fechas')
         ax.set_ylabel('Humedad')
         ax.set_title('Humedad en función de las fechas')
@@ -287,10 +321,7 @@ def obtenerHumedadPerfecta(planta,indicePlanta):
 
         plt.tight_layout()  # Ajustar diseño
         plt.show()
-        """
-
-    return humedadPerfectaPlanta
-
+    """
 
 def tuplasAnteriores(fecha, dias, tuplas):
     fecha_limite = fecha - timedelta(days=dias)
@@ -344,7 +375,47 @@ def calcular_puntuacion(tuplas):
 
     return mejor_tupla
 
-def cnn_model(input_shape, nb_classes):
+def eliminar_datos_inecesarios(datos_IOT_ordenados_por_planta):
+    datos_IOT_refinados_por_planta = []
+    for planta in datos_IOT_ordenados_por_planta:
+
+        tuplasRefinadas = []
+        # Recorremos el array principal
+        for datos in planta:
+            tupla = []
+            # Recorremos cada tupla en el subarray y añadimos el tercer valor a la lista
+            for dato in datos:
+                tupla.append(dato[3])
+
+            # Convertimos la lista de terceros valores en una tupla
+            tuplasRefinadas.append(tuple(tupla[i] for i in (0, 1, 2, 3, 4, 5, 6, 7, 8)))
+
+        array_convertido = [(float(a), float(b), float(c), float(d), float(e), float(f), float(g), float(h), float(i)) for a, b, c, d, e, f, g, h, i in tuplasRefinadas]
+        datos_IOT_refinados_por_planta.append(array_convertido)
+
+    return datos_IOT_refinados_por_planta
+
+def preparar_datos_red(X,y):
+    # Inicializamos un nuevo array para almacenar todas las tuplas
+    nuevo_X = []
+    nuevo_y = []
+
+    # Iteramos sobre cada array interno
+    for sub_array in X:
+        # Iteramos sobre cada tupla dentro del array interno y las agregamos al nuevo array
+        for tupla in sub_array:
+            nuevo_X.append(tupla)
+
+    # Iteramos sobre cada array interno
+    for sub_array in y:
+        # Iteramos sobre cada tupla dentro del array interno y las agregamos al nuevo array
+        for tupla in sub_array:
+            nuevo_y.append(tupla)
+
+    return nuevo_X,nuevo_y
+
+
+def cnn_model_sin_imagenes(input_shape, nb_classes):
     inputs = layers.Input(shape=input_shape)
     x = layers.Rescaling(1. / 255)(inputs)
 
@@ -362,7 +433,7 @@ def cnn_model(input_shape, nb_classes):
     x = layers.Dense(128, activation='relu')(x)
     x = layers.Dropout(0.2)(x)
 
-    outputs = layers.Dense(nb_classes, activation='softmax')(x)
+    outputs = layers.Dense(activation='sigmoid')(x)
 
     model = models.Model(inputs=inputs, outputs=outputs)
 
@@ -376,36 +447,97 @@ def GuardarValoresROCfichero():
 
 ##################################################################################
 # Main program
+##################################################################################
 def main():
-    X, y, input_shape = load_data()
+    print("Recogiendo datos:")
+    #X_imagenes, fechas, input_shape = load_data()
 
-    print(X.shape, 'train samples')
-    print(img_rows,'x', img_cols, 'image size')
-    print(input_shape,'input_shape')
-    print(epochs,'epochs')
-
-    #plot_symbols(X, y)
-    collections.Counter(y)
-
-    datagen = ImageDataGenerator(
-        rotation_range=15,
-        width_shift_range=0.1,
-        height_shift_range=0.1,
-        shear_range=0.2,
-        zoom_range=0.2,
-        horizontal_flip=True,
-        fill_mode='nearest')
-
-    fechasImagenes = obtenerFechaImagenesFormatoSQL(y)
+    #fechasImagenes = obtenerFechaImagenesFormatoSQL(fechas)
 
     obtenerDatosIOT()
 
-    filtrarDatosIOTparaImagenes(fechasImagenes)
+    #filtrarDatosIOTparaImagenes(fechasImagenes)
 
-    dividrDatosIOTporPlanta()
+    datos_por_Planta = dividrDatosIOTporPlanta()
 
-    asignarHumedadPerfecta()
+    X_IOT = eliminar_datos_inecesarios(datos_por_Planta)
 
+    y = asignarHumedadPerfecta()
+
+    """
+    #Mostrar imagenes
+    print(X_IOT.shape, 'train samples')
+    print(img_rows, 'x', img_cols, 'image size')
+    print(input_shape, 'input_shape')
+    print(epochs, 'epochs')
+
+    plot_symbols(X_IOT, y)
+    collections.Counter(y)
+    """
+
+    #Eliminamos el sensor de C02
+    del X_IOT[4]
+    del y[4]
+
+    print(f"Datos clave: {len(X_IOT)} | {len(y)}")
+    print(f"Datos clave: {len(X_IOT[0])} | {len(y[0])}")
+    print(f"Datos clave: {len(X_IOT[1])} | {len(y[1])}")
+    print(f"Datos clave: {len(X_IOT[2])} | {len(y[2])}")
+    print(f"Datos clave: {len(X_IOT[3])} | {len(y[3])}")
+    print(f"Datos clave: {len(X_IOT[4])} | {len(y[4])}")
+
+    X,y=preparar_datos_red(X_IOT,y)
+
+    print(f"Datos clave: {len(X)} | {len(y)}")
+
+
+    #CV - 10
+    kf = StratifiedKFold(n_splits=crossValidationSplit, shuffle=True, random_state=123)
+
+    splitEntrenamiento = 1
+
+    for train_index, test_index in kf.split(X, y):
+        X_train, X_test = X[train_index], X[test_index]
+        y_train, y_test = y[train_index], y[test_index]
+
+        print(f'x_train {X_train.shape} x_test {X_test.shape}')
+        print(f'y_train {y_train.shape} y_test {y_test.shape}')
+
+        model = cnn_model_sin_imagenes()
+        print(model.summary())
+
+        model.compile(loss='mean_squared_error', optimizer='adam', metrics=['accuracy'])
+
+        history = model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs, validation_split=0.1, verbose=2)
+        #history = model.fit(train_datagen, steps_per_epoch=len(X_train) // batch_size, epochs=epochs,
+        #                    validation_data=(X_test, y_test), verbose=2)
+
+        # Obtener las métricas del historial
+        acc = history.history['accuracy']
+        val_acc = history.history['val_accuracy']
+        loss = history.history['loss']
+        val_loss = history.history['val_loss']
+
+        # Graficar la precisión
+        plt.figure(figsize=(12, 4))
+        plt.subplot(1, 2, 1)
+        plt.plot(acc, label='Training Accuracy')
+        plt.plot(val_acc, label='Validation Accuracy')
+        plt.legend()
+        plt.title('Training and Validation Accuracy')
+        plt.xlabel('Epochs')
+        plt.ylabel('Accuracy')
+
+        # Graficar la pérdida
+        plt.subplot(1, 2, 2)
+        plt.plot(loss, label='Training Loss')
+        plt.plot(val_loss, label='Validation Loss')
+        plt.legend()
+        plt.title('Training and Validation Loss')
+        plt.xlabel('Epochs')
+        plt.ylabel('Loss')
+
+        plt.show()
     """
     # CNN layer need an additional chanel to colors (32 x 32 x 1)
     print('N samples, witdh, height, channels',X.shape)
