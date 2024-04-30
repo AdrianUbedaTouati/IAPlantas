@@ -11,7 +11,7 @@ import calendar, locale
 locale.setlocale(locale.LC_ALL,'es_ES')
 
 import sklearn
-from sklearn.model_selection import train_test_split, StratifiedKFold
+from sklearn.model_selection import train_test_split, StratifiedKFold, KFold
 from sklearn import metrics
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import cross_val_score
@@ -395,6 +395,7 @@ def eliminar_datos_inecesarios(datos_IOT_ordenados_por_planta):
 
     return datos_IOT_refinados_por_planta
 
+
 def preparar_datos_red(X,y):
     # Inicializamos un nuevo array para almacenar todas las tuplas
     nuevo_X = []
@@ -413,6 +414,62 @@ def preparar_datos_red(X,y):
             nuevo_y.append(tupla)
 
     return nuevo_X,nuevo_y
+
+
+def preparar_datos_normalizados_red(X, y):
+    # Inicializamos un nuevo array para almacenar todas las tuplas
+    nuevo_X = []
+    nuevo_y = []
+
+    max_X = [-1,-1,-1,-1,-1,-1,-1,-1,-1]
+    max_y = -1
+
+    #Buscar los valores maximos
+    for sub_array in X:
+        # Iteramos sobre cada tupla dentro del array interno y las normalizamos
+        for tupla in sub_array:
+            contador = 0
+            for elemento in tupla:
+                if max_X[contador] < elemento:
+                    max_X[contador] = elemento
+
+                contador += 1
+
+    # Iteramos sobre cada array interno en y
+    for sub_array in y:
+        # Iteramos sobre cada tupla dentro del array interno y las normalizamos
+        for elemento in sub_array:
+            if max_y < elemento:
+                max_y = elemento
+
+    print(max_X)
+    print(max_y)
+
+    # Normalizar
+
+    # Iteramos sobre cada array interno en X
+    for sub_array in X:
+        # Iteramos sobre cada tupla dentro del array interno y las normalizamos
+        for tupla in sub_array:
+            contador = 0
+            tupla_normalizada = []
+            for elemento in tupla:
+                valor_normalizado = elemento / max_X[contador]
+                tupla_normalizada.append(valor_normalizado)
+                contador += 1
+
+            nuevo_X.append(tuple(tupla_normalizada))
+
+
+    # Iteramos sobre cada array interno en y
+    for sub_array in y:
+        # Iteramos sobre cada tupla dentro del array interno y las normalizamos
+        for elemento in sub_array:
+            normalized_tupla = elemento / max_y
+            nuevo_y.append(normalized_tupla)
+   
+
+    return nuevo_X, nuevo_y
 
 
 def cnn_model_sin_imagenes(input_shape, nb_classes):
@@ -484,15 +541,16 @@ def main():
     print(f"Datos clave: {len(X_IOT[1])} | {len(y[1])}")
     print(f"Datos clave: {len(X_IOT[2])} | {len(y[2])}")
     print(f"Datos clave: {len(X_IOT[3])} | {len(y[3])}")
-    print(f"Datos clave: {len(X_IOT[4])} | {len(y[4])}")
 
-    X,y=preparar_datos_red(X_IOT,y)
+    X,y=preparar_datos_normalizados_red(X_IOT,y)
 
     print(f"Datos clave: {len(X)} | {len(y)}")
+    print(X[0])
+    print(y[0])
 
 
     #CV - 10
-    kf = StratifiedKFold(n_splits=crossValidationSplit, shuffle=True, random_state=123)
+    kf = KFold(n_splits=crossValidationSplit, shuffle=True, random_state=123)
 
     splitEntrenamiento = 1
 
