@@ -67,6 +67,8 @@ datosIOTEntrenamientoImagenes = []
 datosOrdenadosPorPlantas = [[], [], [], [], []]  # Lista para cada planta y calidad del aire
 humedadIdealOrdenadaPorPlantas = [[], [], [], [], []] # Humedad ideal por cada tupla
 
+input_shape_IOT = 9 # Datos en entrada en la red
+
 def load_data():
     X = []
     fechas = []
@@ -442,9 +444,6 @@ def preparar_datos_normalizados_red(X, y):
             if max_y < elemento:
                 max_y = elemento
 
-    print(max_X)
-    print(max_y)
-
     # Normalizar
 
     # Iteramos sobre cada array interno en X
@@ -467,30 +466,18 @@ def preparar_datos_normalizados_red(X, y):
         for elemento in sub_array:
             normalized_tupla = elemento / max_y
             nuevo_y.append(normalized_tupla)
-   
 
-    return nuevo_X, nuevo_y
+    return np.array(nuevo_X),np.array(nuevo_y)
 
 
-def cnn_model_sin_imagenes(input_shape, nb_classes):
-    inputs = layers.Input(shape=input_shape)
-    x = layers.Rescaling(1. / 255)(inputs)
+def cnn_model_IOT(input_shape):
+    inputs = layers.Input(shape=(input_shape,))
 
-    x = layers.Conv2D(64, (3, 3), activation='relu')(x)
-    x = layers.MaxPooling2D(pool_size=(2, 2))(x)
+    x = layers.Dense(64,  activation='relu')(inputs)
 
-    x = layers.Conv2D(128, (3, 3), activation='relu')(x)
-    x = layers.MaxPooling2D(pool_size=(2, 2))(x)
+    x = layers.Dense(32, activation='relu')(x)
 
-    x = layers.Flatten()(x)
-
-    x = layers.Dense(256, activation='relu')(x)
-    x = layers.Dropout(0.2)(x)
-
-    x = layers.Dense(128, activation='relu')(x)
-    x = layers.Dropout(0.2)(x)
-
-    outputs = layers.Dense(activation='sigmoid')(x)
+    outputs = layers.Dense(1,activation='sigmoid')(x)
 
     model = models.Model(inputs=inputs, outputs=outputs)
 
@@ -536,18 +523,7 @@ def main():
     del X_IOT[4]
     del y[4]
 
-    print(f"Datos clave: {len(X_IOT)} | {len(y)}")
-    print(f"Datos clave: {len(X_IOT[0])} | {len(y[0])}")
-    print(f"Datos clave: {len(X_IOT[1])} | {len(y[1])}")
-    print(f"Datos clave: {len(X_IOT[2])} | {len(y[2])}")
-    print(f"Datos clave: {len(X_IOT[3])} | {len(y[3])}")
-
     X,y=preparar_datos_normalizados_red(X_IOT,y)
-
-    print(f"Datos clave: {len(X)} | {len(y)}")
-    print(X[0])
-    print(y[0])
-
 
     #CV - 10
     kf = KFold(n_splits=crossValidationSplit, shuffle=True, random_state=123)
@@ -561,7 +537,7 @@ def main():
         print(f'x_train {X_train.shape} x_test {X_test.shape}')
         print(f'y_train {y_train.shape} y_test {y_test.shape}')
 
-        model = cnn_model_sin_imagenes()
+        model = cnn_model_IOT(input_shape_IOT)
         print(model.summary())
 
         model.compile(loss='mean_squared_error', optimizer='adam', metrics=['accuracy'])
