@@ -19,6 +19,7 @@ from sklearn.model_selection import cross_val_score
 import os
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
+import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras.preprocessing import image
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
@@ -48,8 +49,8 @@ from psycopg2 import Error
 #Entrenamiento
 batch_size = 64
 nb_classes = 3
-epochs = 50
-crossValidationSplit = 10
+epochs = 100
+crossValidationSplit = 2
 busquedaMejorTuplaDias = 3
 # numero de tuplas = 5(intervalo entre cada dato)*12( tranformacion a una hora)*24(a un dia)*5(a 5 dias)
 
@@ -473,7 +474,11 @@ def preparar_datos_normalizados_red(X, y):
 def cnn_model_IOT(input_shape):
     inputs = layers.Input(shape=(input_shape,))
 
-    x = layers.Dense(64,  activation='relu')(inputs)
+    x = layers.Dense(256, activation='relu')(inputs)
+
+    x = layers.Dense(128, activation='relu')(x)
+
+    x = layers.Dense(64,  activation='relu')(x)
 
     x = layers.Dense(32, activation='relu')(x)
 
@@ -482,6 +487,13 @@ def cnn_model_IOT(input_shape):
     model = models.Model(inputs=inputs, outputs=outputs)
 
     return model
+
+def custom_loss(y_true, y_pred):
+    # Clip predictions to avoid log(0) or log(1) which are undefined.
+    y_pred = tf.clip_by_value(y_pred, 1e-7, 1 - 1e-7)
+    # Calculate binary cross-entropy loss
+    loss = -tf.reduce_mean(y_true * tf.math.log(y_pred) + (1 - y_true) * tf.math.log(1 - y_pred))
+    return loss
 
 def GuardarValoresROCfichero():
     # Escribimos los resultado en un fichero de texto
@@ -540,17 +552,17 @@ def main():
         model = cnn_model_IOT(input_shape_IOT)
         print(model.summary())
 
-        model.compile(loss='mean_squared_error', optimizer='adam', metrics=['accuracy'])
+        model.compile(loss=custom_loss, optimizer='adam', metrics=['mae', 'mse'])
 
         history = model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs, validation_split=0.1, verbose=2)
         #history = model.fit(train_datagen, steps_per_epoch=len(X_train) // batch_size, epochs=epochs,
         #                    validation_data=(X_test, y_test), verbose=2)
 
         # Obtener las métricas del historial
-        acc = history.history['accuracy']
-        val_acc = history.history['val_accuracy']
-        loss = history.history['loss']
-        val_loss = history.history['val_loss']
+        acc = history.history['mae']
+        val_acc = history.history['val_mae']
+        loss = history.history['mse']
+        val_loss = history.history['val_mse']
 
         # Graficar la precisión
         plt.figure(figsize=(12, 4))
@@ -572,6 +584,36 @@ def main():
         plt.ylabel('Loss')
 
         plt.show()
+
+        #shap.explainers._deep.deep_tf.op_handlers["AddV2"] = shap.explainers._deep.deep_tf.passthrough
+
+        #Visualizar datos del split
+        loss = model.evaluate(X_test, y_test, batch_size=batch_size)
+        y_pred = model.predict(X_test)
+        #resultadosROC.append(roc_auc_score(y_test, y_pred[:, 1],multi_class='ovr'))
+        print(f"Split numero {splitEntrenamiento}:")
+
+        print('Predictions')
+        y_pred_int = y_pred.argmax(axis=1)
+        print(collections.Counter(y_pred_int), '\n')
+
+        # Obtener 10 índices aleatorios del conjunto de datos de prueba
+        random_indices = np.random.choice(len(X_test), size=10, replace=False)
+
+        # Seleccionar 10 ejemplos aleatorios del conjunto de datos de prueba
+        X_sample = X_test[random_indices]
+        y_sample_true = y_test[random_indices]
+
+        # Hacer predicciones en los ejemplos seleccionados
+        y_sample_pred = model.predict(X_sample)
+
+        # Mostrar los resultados
+        for i in range(10):
+            print("Ejemplo", i + 1)
+            print("Valor real:", y_sample_true[i])
+            print("Valor predicho:", y_sample_pred[i])
+            print("-------------------------")
+
     """
     # CNN layer need an additional chanel to colors (32 x 32 x 1)
     print('N samples, witdh, height, channels',X.shape)
