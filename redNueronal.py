@@ -72,7 +72,7 @@ datosIOTEntrenamientoImagenes = []
 datosOrdenadosPorPlantas = [[], [], [], [], []]  # Lista para cada planta y calidad del aire
 humedadIdealOrdenadaPorPlantas = [[], [], [], [], []] # Humedad ideal por cada tupla
 
-input_shape_IOT = 9 # Datos en entrada en la red
+input_shape_IOT = (9,) # Datos en entrada en la red
 
 def load_data():
     X = []
@@ -252,11 +252,19 @@ def asignarHumedadPerfecta():
 
     for i in range(len(datosOrdenadosPorPlantas)-1):
         print(f"Planta {i+1} procensando...")
-        humedadIdealOrdenadaPorPlantas[i] = obtenerHumedadPerfecta(datosOrdenadosPorPlantas[i],i)
+        humedadIdealOrdenadaPorPlantas[i] = obtenerHumedadPerfecta(datosOrdenadosPorPlantas[i])
 
     return humedadIdealOrdenadaPorPlantas
 
-def obtenerHumedadPerfecta(planta,indicePlanta):
+def asignarHumedadPerfectaImagenes(planta):
+    global humedadIdealOrdenadaPorPlantas
+
+    print(f"Planta {planta_imagen-1} procensando...")
+    humedadIdealOrdenadaPorPlantas = obtenerHumedadPerfecta(planta)
+
+    return humedadIdealOrdenadaPorPlantas
+
+def obtenerHumedadPerfecta(planta):
     global busquedaMejorTuplaDias
     dias = busquedaMejorTuplaDias
 
@@ -455,7 +463,7 @@ def preparar_datos_normalizados_red(X, y):
     nuevo_y = []
 
     max_X = [-1,-1,-1,-1,-1,-1,-1,-1,-1]
-    max_y = -1
+    max_y = 100
 
     #Buscar los valores maximos
     for sub_array in X:
@@ -468,13 +476,14 @@ def preparar_datos_normalizados_red(X, y):
 
                 contador += 1
 
+    """
     # Iteramos sobre cada array interno en y
     for sub_array in y:
         # Iteramos sobre cada tupla dentro del array interno y las normalizamos
         for elemento in sub_array:
             if max_y < elemento:
                 max_y = elemento
-
+    """
     # Normalizar
 
     # Iteramos sobre cada array interno en X
@@ -522,8 +531,10 @@ def cnn_model_imagenes_IOT(input_shape_image, input_shape_tuple):
 
     # Capa de entrada para la imagen
     input_image = layers.Input(shape=input_shape_image)
+
+    x = layers.Rescaling(1. / 255)(input_image)
     # Capa convolucional para procesar la imagen
-    conv1 = layers.Conv2D(32, kernel_size=(3, 3), activation='relu')(input_image)
+    conv1 = layers.Conv2D(32, kernel_size=(3, 3), activation='relu')(x)
     pool1 = layers.MaxPooling2D(pool_size=(2, 2))(conv1)
     conv2 = layers.Conv2D(64, kernel_size=(3, 3), activation='relu')(pool1)
     pool2 = layers.MaxPooling2D(pool_size=(2, 2))(conv2)
@@ -536,19 +547,11 @@ def cnn_model_imagenes_IOT(input_shape_image, input_shape_tuple):
     # Concatenación de las salidas de las capas anteriores
     concatenated = layers.concatenate([flatten1, flatten2])
 
-    # Capa densa para la salida, con ponderación extra para la tupla
-    dense1 = layers.Dense(256, activation='relu')(concatenated)
-    # Ponderación extra para la salida de la tupla
-    dense_tuple_weighted = layers.Dense(128, activation='relu')(flatten2)
-    dense_weighted = layers.Dense(128, activation='relu')(dense1)
-
-    dense_weighted = layers.Dense(64, activation='relu')(dense_weighted)
-    # Fusionar las salidas ponderadas
-    merged_dense = layers.concatenate([dense_weighted, dense_tuple_weighted])
-    output = layers.Dense(1, activation='sigmoid')(merged_dense)
+    dense1 = layers.Dense(128, activation='relu')(concatenated)
+    output = layers.Dense(1, activation='sigmoid')(dense1)
 
     # Modelo final
-    model = layers.Model(inputs=[input_image, input_tuple], outputs=output)
+    model = models.Model(inputs=[input_image, input_tuple], outputs=output)
     return model
 
 
@@ -583,16 +586,17 @@ def mainImagenes():
     print(f"Numero de datos esperados :{len(datosFiltrados)}")
     print(f"Numero de datos devueltos :{len(X_imagenes)}")
 
-    print(datosFiltrados)
-
     arreglo = []
 
     arreglo.append(datosFiltrados)
 
     X_IOT = eliminar_datos_inecesarios_imagenes(arreglo)
 
-    y = asignarHumedadPerfecta()
+    humedades = asignarHumedadPerfectaImagenes(datosFiltrados)
 
+    y = []
+
+    y.append(humedades)
     """
     #Mostrar imagenes
     print(X_IOT.shape, 'train samples')
@@ -601,7 +605,10 @@ def mainImagenes():
     print(epochs, 'epochs')
     """
 
-
+    #print(f"Numero de datos esperados :{len(X_imagenes)}")
+    #print(f"Numero de datos devueltos :{len(X_IOT)}")
+    #print(f"Numero de datos devueltos :{len(y)}")
+    #sys.exit(0)
 
     X, y = preparar_datos_normalizados_red(X_IOT, y)
 
@@ -610,19 +617,20 @@ def mainImagenes():
 
     splitEntrenamiento = 1
 
-    for train_index, test_index in kf.split(X, y):
+    for train_index, test_index in kf.split(X, y, X_imagenes):
         X_train, X_test = X[train_index], X[test_index]
         y_train, y_test = y[train_index], y[test_index]
+        X_imagenes_train, X_imagenes_test = X_imagenes[train_index], X_imagenes[test_index]
 
         print(f'x_train {X_train.shape} x_test {X_test.shape}')
         print(f'y_train {y_train.shape} y_test {y_test.shape}')
 
-        model = cnn_model_IOT(input_shape_IOT)
+        model = cnn_model_imagenes_IOT(input_shape,input_shape_IOT)
         print(model.summary())
 
         model.compile(loss=custom_loss, optimizer='adam', metrics=['mae', 'mse'])
 
-        history = model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs, validation_split=0.1, verbose=2)
+        history = model.fit([X_imagenes_train,X_train], y_train, batch_size=batch_size, epochs=epochs, validation_split=0.1, verbose=2)
         # history = model.fit(train_datagen, steps_per_epoch=len(X_train) // batch_size, epochs=epochs,
         #                    validation_data=(X_test, y_test), verbose=2)
 
@@ -656,8 +664,8 @@ def mainImagenes():
         # shap.explainers._deep.deep_tf.op_handlers["AddV2"] = shap.explainers._deep.deep_tf.passthrough
 
         # Visualizar datos del split
-        loss = model.evaluate(X_test, y_test, batch_size=batch_size)
-        y_pred = model.predict(X_test)
+        loss = model.evaluate([X_imagenes_train,X_test], y_test, batch_size=batch_size)
+        y_pred = model.predict([X_imagenes_train,X_test])
         # resultadosROC.append(roc_auc_score(y_test, y_pred[:, 1],multi_class='ovr'))
         print(f"Split numero {splitEntrenamiento}:")
 
@@ -671,9 +679,10 @@ def mainImagenes():
         # Seleccionar 10 ejemplos aleatorios del conjunto de datos de prueba
         X_sample = X_test[random_indices]
         y_sample_true = y_test[random_indices]
+        X_sample_image = X_imagenes_test[random_indices]
 
         # Hacer predicciones en los ejemplos seleccionados
-        y_sample_pred = model.predict(X_sample)
+        y_sample_pred = model.predict([X_sample_image,X_sample])
 
         # Mostrar los resultados
         for i in range(10):
@@ -681,8 +690,6 @@ def mainImagenes():
             print("Valor real:", y_sample_true[i])
             print("Valor predicho:", y_sample_pred[i])
             print("-------------------------")
-
-
 
 def main():
     print("Recogiendo datos:")
