@@ -52,6 +52,8 @@ nb_classes = 3
 epochs = 100
 crossValidationSplit = 2
 busquedaMejorTuplaDias = 3
+entrenar_con_imagen = True
+planta_imagen = 1
 # numero de tuplas = 5(intervalo entre cada dato)*12( tranformacion a una hora)*24(a un dia)*5(a 5 dias)
 
 # Scaling input image to theses dimensions
@@ -488,6 +490,40 @@ def cnn_model_IOT(input_shape):
 
     return model
 
+def cnn_model_imagenes_IOT(input_shape_image, input_shape_tuple):
+
+    # Capa de entrada para la imagen
+    input_image = layers.Input(shape=input_shape_image)
+    # Capa convolucional para procesar la imagen
+    conv1 = layers.Conv2D(32, kernel_size=(3, 3), activation='relu')(input_image)
+    pool1 = layers.MaxPooling2D(pool_size=(2, 2))(conv1)
+    conv2 = layers.Conv2D(64, kernel_size=(3, 3), activation='relu')(pool1)
+    pool2 = layers.MaxPooling2D(pool_size=(2, 2))(conv2)
+    flatten1 = layers.Flatten()(pool2)
+
+    # Capa de entrada para la tupla
+    input_tuple = layers.Input(shape=input_shape_tuple)
+    flatten2 = layers.Flatten()(input_tuple)
+
+    # Concatenación de las salidas de las capas anteriores
+    concatenated = layers.concatenate([flatten1, flatten2])
+
+    # Capa densa para la salida, con ponderación extra para la tupla
+    dense1 = layers.Dense(256, activation='relu')(concatenated)
+    # Ponderación extra para la salida de la tupla
+    dense_tuple_weighted = layers.Dense(128, activation='relu')(flatten2)
+    dense_weighted = layers.Dense(128, activation='relu')(dense1)
+
+    dense_weighted = layers.Dense(64, activation='relu')(dense_weighted)
+    # Fusionar las salidas ponderadas
+    merged_dense = layers.concatenate([dense_weighted, dense_tuple_weighted])
+    output = layers.Dense(1, activation='sigmoid')(merged_dense)
+
+    # Modelo final
+    model = layers.Model(inputs=[input_image, input_tuple], outputs=output)
+    return model
+
+
 def custom_loss(y_true, y_pred):
     # Clip predictions to avoid log(0) or log(1) which are undefined.
     y_pred = tf.clip_by_value(y_pred, 1e-7, 1 - 1e-7)
@@ -504,15 +540,15 @@ def GuardarValoresROCfichero():
 ##################################################################################
 # Main program
 ##################################################################################
-def main():
+def mainImagenes():
     print("Recogiendo datos:")
-    #X_imagenes, fechas, input_shape = load_data()
+    X_imagenes, fechas, input_shape = load_data()
 
-    #fechasImagenes = obtenerFechaImagenesFormatoSQL(fechas)
+    fechasImagenes = obtenerFechaImagenesFormatoSQL(fechas)
 
     obtenerDatosIOT()
 
-    #filtrarDatosIOTparaImagenes(fechasImagenes)
+    filtrarDatosIOTparaImagenes(fechasImagenes)
 
     datos_por_Planta = dividrDatosIOTporPlanta()
 
@@ -520,7 +556,7 @@ def main():
 
     y = asignarHumedadPerfecta()
 
-    """
+
     #Mostrar imagenes
     print(X_IOT.shape, 'train samples')
     print(img_rows, 'x', img_cols, 'image size')
@@ -529,7 +565,144 @@ def main():
 
     plot_symbols(X_IOT, y)
     collections.Counter(y)
-    """
+
+    # Eliminamos el sensor de C02
+    del X_IOT[4]
+    del y[4]
+
+    if entrenar_con_imagen:
+        if planta_imagen == 1:
+            del X_IOT[3]
+            del y[3]
+
+            del X_IOT[2]
+            del y[2]
+
+            del X_IOT[1]
+            del y[1]
+        elif planta_imagen == 2:
+            del X_IOT[3]
+            del y[3]
+
+            del X_IOT[2]
+            del y[2]
+
+            del X_IOT[0]
+            del y[0]
+        elif planta_imagen == 3:
+            del X_IOT[3]
+            del y[3]
+
+            del X_IOT[0]
+            del y[0]
+
+            del X_IOT[1]
+            del y[1]
+        elif planta_imagen == 3:
+            del X_IOT[2]
+            del y[2]
+
+            del X_IOT[0]
+            del y[0]
+
+            del X_IOT[1]
+            del y[1]
+
+    print(f"Numero de datos esperados :{len(X_IOT[0])}")
+    print(f"Numero de datos devueltos :{len(X_imagenes)}")
+
+    X, y = preparar_datos_normalizados_red(X_IOT, y)
+
+    # CV - 10
+    kf = KFold(n_splits=crossValidationSplit, shuffle=True, random_state=123)
+
+    splitEntrenamiento = 1
+
+    for train_index, test_index in kf.split(X, y):
+        X_train, X_test = X[train_index], X[test_index]
+        y_train, y_test = y[train_index], y[test_index]
+
+        print(f'x_train {X_train.shape} x_test {X_test.shape}')
+        print(f'y_train {y_train.shape} y_test {y_test.shape}')
+
+        model = cnn_model_IOT(input_shape_IOT)
+        print(model.summary())
+
+        model.compile(loss=custom_loss, optimizer='adam', metrics=['mae', 'mse'])
+
+        history = model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs, validation_split=0.1, verbose=2)
+        # history = model.fit(train_datagen, steps_per_epoch=len(X_train) // batch_size, epochs=epochs,
+        #                    validation_data=(X_test, y_test), verbose=2)
+
+        # Obtener las métricas del historial
+        acc = history.history['mae']
+        val_acc = history.history['val_mae']
+        loss = history.history['mse']
+        val_loss = history.history['val_mse']
+
+        # Graficar la precisión
+        plt.figure(figsize=(12, 4))
+        plt.subplot(1, 2, 1)
+        plt.plot(acc, label='Training Accuracy')
+        plt.plot(val_acc, label='Validation Accuracy')
+        plt.legend()
+        plt.title('Training and Validation Accuracy')
+        plt.xlabel('Epochs')
+        plt.ylabel('Accuracy')
+
+        # Graficar la pérdida
+        plt.subplot(1, 2, 2)
+        plt.plot(loss, label='Training Loss')
+        plt.plot(val_loss, label='Validation Loss')
+        plt.legend()
+        plt.title('Training and Validation Loss')
+        plt.xlabel('Epochs')
+        plt.ylabel('Loss')
+
+        plt.show()
+
+        # shap.explainers._deep.deep_tf.op_handlers["AddV2"] = shap.explainers._deep.deep_tf.passthrough
+
+        # Visualizar datos del split
+        loss = model.evaluate(X_test, y_test, batch_size=batch_size)
+        y_pred = model.predict(X_test)
+        # resultadosROC.append(roc_auc_score(y_test, y_pred[:, 1],multi_class='ovr'))
+        print(f"Split numero {splitEntrenamiento}:")
+
+        print('Predictions')
+        y_pred_int = y_pred.argmax(axis=1)
+        print(collections.Counter(y_pred_int), '\n')
+
+        # Obtener 10 índices aleatorios del conjunto de datos de prueba
+        random_indices = np.random.choice(len(X_test), size=10, replace=False)
+
+        # Seleccionar 10 ejemplos aleatorios del conjunto de datos de prueba
+        X_sample = X_test[random_indices]
+        y_sample_true = y_test[random_indices]
+
+        # Hacer predicciones en los ejemplos seleccionados
+        y_sample_pred = model.predict(X_sample)
+
+        # Mostrar los resultados
+        for i in range(10):
+            print("Ejemplo", i + 1)
+            print("Valor real:", y_sample_true[i])
+            print("Valor predicho:", y_sample_pred[i])
+            print("-------------------------")
+
+
+
+def main():
+    print("Recogiendo datos:")
+    X_imagenes, fechas, input_shape = load_data()
+
+    obtenerDatosIOT()
+
+    datos_por_Planta = dividrDatosIOTporPlanta()
+
+    X_IOT = eliminar_datos_inecesarios(datos_por_Planta)
+
+    y = asignarHumedadPerfecta()
 
     #Eliminamos el sensor de C02
     del X_IOT[4]
@@ -715,4 +888,7 @@ def main():
     """
 
 if __name__ == '__main__':
-    main()
+    if planta_imagen:
+        mainImagenes()
+    else:
+        main()
