@@ -1,3 +1,5 @@
+import sys
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -112,21 +114,6 @@ def preprocesar_imagen(imagen_path):
 
     return imagen_final
 
-"""
-def preprocesar_imagen(imagen_path):
-    # Cargar la imagen utilizando OpenCV
-    imagen = cv2.imread(imagen_path)
-
-    imagenRGB = cv2.cvtColor(imagen, cv2.COLOR_BGR2RGB)
-
-    imagenNormalizada = imagenRGB.astype('float32') / 255.0
-
-    # Realizar otras transformaciones si es necesario, como redimensionar, normalizar, etc.
-    imagen_final = cv2.resize(imagenNormalizada, (img_rows, img_cols))
-
-    return imagen_final
-"""
-
 def plot_symbols(X,y,n=15):
     index = np.random.randint(len(y), size=n)
     plt.figure(figsize=(n, 3))
@@ -185,6 +172,8 @@ def obtenerDatosIOT():
     except Error as e:
         print("Error en la conexion: ",e)
 
+    return datosIOT
+
 def fecha_mas_cercana(fecha, fechas):
     diferencia_mas_cercana = None
     fecha_mas_cercana = None
@@ -197,24 +186,25 @@ def fecha_mas_cercana(fecha, fechas):
 
     return fecha_mas_cercana
 
-def tupla_con_fecha_mas_cercana(elemento, array_de_tuplas):
+def tupla_con_fecha_mas_cercana(elemento, plantasOrdenadas):
     diferencia_mas_cercana = None
     tupla_mas_cercana = None
 
-    for tupla in array_de_tuplas:
-        fecha = tupla[4] #lugar donde esta la feha en la tupla
+    for dato in plantasOrdenadas:
+        fecha = dato[0][4] #lugar donde esta la feha en la tupla
         diferencia = abs(elemento - fecha)
         if diferencia_mas_cercana is None or diferencia < diferencia_mas_cercana:
             diferencia_mas_cercana = diferencia
-            tupla_mas_cercana = tupla
+            tupla_mas_cercana = dato
 
     return tupla_mas_cercana
 
-def filtrarDatosIOTparaImagenes(fechasImagenes):
+def filtrarDatosIOTparaImagenes(fechasImagenes,datosIOT):
     global datosIOTEntrenamientoImagenes
     for i in range(len(fechasImagenes)):
         #print("fecha :",fechasImagenes[i])
-        datosIOTEntrenamientoImagenes.append(tupla_con_fecha_mas_cercana(fechasImagenes[i],datosIOT))
+        datosIOTEntrenamientoImagenes.append(tupla_con_fecha_mas_cercana(fechasImagenes[i], datosIOT[planta_imagen - 1]))
+    return datosIOTEntrenamientoImagenes
 
 #Buscar en la ultima semana de datos
 #Cada tupla se registra cada 5 m
@@ -223,7 +213,24 @@ def filtrarDatosIOTparaImagenes(fechasImagenes):
 #def mejorTupla(fechaActual):
     #Sistema de recompensa
 
-def dividrDatosIOTporPlanta():
+def dividrDatosIOTporPlanta(datosIOT):
+    global datosOrdenadosPorPlantas
+
+    contador = 0
+
+    lecturaCompleta = []
+    for datoIOT in datosIOT:
+        contador = contador + 1
+        planta = datoIOT[1]
+        lecturaCompleta.append(datoIOT)
+        if (contador == 16 and planta != 5) or (contador == 11 and planta == 5):
+            datosOrdenadosPorPlantas[planta - 1].append(lecturaCompleta)
+            lecturaCompleta = []
+            contador = 0
+
+    return datosOrdenadosPorPlantas
+
+def dividrDatosIOTporPlantaImagenes(datosIOT):
     global datosOrdenadosPorPlantas
 
     contador = 0
@@ -400,6 +407,27 @@ def eliminar_datos_inecesarios(datos_IOT_ordenados_por_planta):
 
     return datos_IOT_refinados_por_planta
 
+def eliminar_datos_inecesarios_imagenes(datos_IOT_ordenados_por_planta):
+    datos_IOT_refinados_por_planta = []
+    for planta in datos_IOT_ordenados_por_planta:
+
+        tuplasRefinadas = []
+        # Recorremos el array principal
+        for datos in planta:
+            tupla = []
+            # Recorremos cada tupla en el subarray y añadimos el tercer valor a la lista
+            for dato in datos:
+                tupla.append(dato[3])
+
+            # Convertimos la lista de terceros valores en una tupla
+            tuplasRefinadas.append(tuple(tupla[i] for i in (0, 1, 2, 3, 4, 5, 6, 7, 8)))
+
+        array_convertido = [(float(a), float(b), float(c), float(d), float(e), float(f), float(g), float(h), float(i))
+                            for a, b, c, d, e, f, g, h, i in tuplasRefinadas]
+        datos_IOT_refinados_por_planta.append(array_convertido)
+
+    return datos_IOT_refinados_por_planta
+
 
 def preparar_datos_red(X,y):
     # Inicializamos un nuevo array para almacenar todas las tuplas
@@ -546,70 +574,34 @@ def mainImagenes():
 
     fechasImagenes = obtenerFechaImagenesFormatoSQL(fechas)
 
-    obtenerDatosIOT()
+    datosIOT = obtenerDatosIOT()
 
-    filtrarDatosIOTparaImagenes(fechasImagenes)
+    datos_por_Planta = dividrDatosIOTporPlanta(datosIOT)
 
-    datos_por_Planta = dividrDatosIOTporPlanta()
+    datosFiltrados = filtrarDatosIOTparaImagenes(fechasImagenes, datos_por_Planta)
 
-    X_IOT = eliminar_datos_inecesarios(datos_por_Planta)
+    print(f"Numero de datos esperados :{len(datosFiltrados)}")
+    print(f"Numero de datos devueltos :{len(X_imagenes)}")
+
+    print(datosFiltrados)
+
+    arreglo = []
+
+    arreglo.append(datosFiltrados)
+
+    X_IOT = eliminar_datos_inecesarios_imagenes(arreglo)
 
     y = asignarHumedadPerfecta()
 
-
+    """
     #Mostrar imagenes
     print(X_IOT.shape, 'train samples')
     print(img_rows, 'x', img_cols, 'image size')
     print(input_shape, 'input_shape')
     print(epochs, 'epochs')
+    """
 
-    plot_symbols(X_IOT, y)
-    collections.Counter(y)
 
-    # Eliminamos el sensor de C02
-    del X_IOT[4]
-    del y[4]
-
-    if entrenar_con_imagen:
-        if planta_imagen == 1:
-            del X_IOT[3]
-            del y[3]
-
-            del X_IOT[2]
-            del y[2]
-
-            del X_IOT[1]
-            del y[1]
-        elif planta_imagen == 2:
-            del X_IOT[3]
-            del y[3]
-
-            del X_IOT[2]
-            del y[2]
-
-            del X_IOT[0]
-            del y[0]
-        elif planta_imagen == 3:
-            del X_IOT[3]
-            del y[3]
-
-            del X_IOT[0]
-            del y[0]
-
-            del X_IOT[1]
-            del y[1]
-        elif planta_imagen == 3:
-            del X_IOT[2]
-            del y[2]
-
-            del X_IOT[0]
-            del y[0]
-
-            del X_IOT[1]
-            del y[1]
-
-    print(f"Numero de datos esperados :{len(X_IOT[0])}")
-    print(f"Numero de datos devueltos :{len(X_imagenes)}")
 
     X, y = preparar_datos_normalizados_red(X_IOT, y)
 
@@ -694,11 +686,9 @@ def mainImagenes():
 
 def main():
     print("Recogiendo datos:")
-    X_imagenes, fechas, input_shape = load_data()
+    datosIOT = obtenerDatosIOT()
 
-    obtenerDatosIOT()
-
-    datos_por_Planta = dividrDatosIOTporPlanta()
+    datos_por_Planta = dividrDatosIOTporPlanta(datosIOT)
 
     X_IOT = eliminar_datos_inecesarios(datos_por_Planta)
 
@@ -888,7 +878,7 @@ def main():
     """
 
 if __name__ == '__main__':
-    if planta_imagen:
+    if entrenar_con_imagen:
         mainImagenes()
     else:
         main()
