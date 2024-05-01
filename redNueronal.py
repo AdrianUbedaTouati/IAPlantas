@@ -112,7 +112,9 @@ def preprocesar_imagen(imagen_path):
     # Realizar otras transformaciones si es necesario, como redimensionar, normalizar, etc.
     imagen_final = cv2.resize(imagen_ajustada, (img_rows, img_cols), interpolation=cv2.INTER_AREA)
 
-    return imagen_final
+    X_images_normalized = imagen_final / 255.0
+
+    return X_images_normalized
 
 def plot_symbols(X,y,n=15):
     index = np.random.randint(len(y), size=n)
@@ -531,10 +533,8 @@ def cnn_model_imagenes_IOT(input_shape_image, input_shape_tuple):
 
     # Capa de entrada para la imagen
     input_image = layers.Input(shape=input_shape_image)
-
-    x = layers.Rescaling(1. / 255)(input_image)
     # Capa convolucional para procesar la imagen
-    conv1 = layers.Conv2D(32, kernel_size=(3, 3), activation='relu')(x)
+    conv1 = layers.Conv2D(32, kernel_size=(3, 3), activation='relu')(input_image)
     pool1 = layers.MaxPooling2D(pool_size=(2, 2))(conv1)
     conv2 = layers.Conv2D(64, kernel_size=(3, 3), activation='relu')(pool1)
     pool2 = layers.MaxPooling2D(pool_size=(2, 2))(conv2)
