@@ -50,15 +50,13 @@ from PIL import Image
 import psycopg2
 from psycopg2 import Error
 
-probar_modelo = True
-
 #Entrenamiento
 batch_size = 64
 nb_classes = 3
-epochs = 20
+epochs = 40
 crossValidationSplit = 2
 busquedaMejorTuplaDias = 3
-entrenar_con_imagen = False
+
 planta_imagen = 1
 # numero de tuplas = 5(intervalo entre cada dato)*12( tranformacion a una hora)*24(a un dia)*5(a 5 dias)
 
@@ -306,20 +304,20 @@ def obtenerHumedadPerfecta(planta):
 
     #print(humedadPerfectaPlanta)
 
-    #crearGraficasHumedad(humedadPerfectaPlanta,humedadMasGrandeDato,indicePlanta,dias,fechaDeCadaDato)
+    #crearGraficasHumedad(humedadPerfectaPlanta,humedadMasGrandeDato,indicePlanta,dias,fechaDeCadaDato,'Humedad mas grande disponible','Humedad perfecta','Humedad mayor posible frente a la "Humedad perfecta"')
 
     return humedadPerfectaPlanta
 
-def crearGraficasHumedad(humedadPerfectaPlanta,humedadMasGrandeDato,indicePlanta,dias,fechaDeCadaDato):
-    plt.plot(humedadPerfectaPlanta, label='Humedad perfecta', marker='o', color='blue')  # Puntos de array1
-    plt.plot(humedadMasGrandeDato, label='Humedad mas grande disponible', marker='o', color='red')  # Puntos de array2
+def crearGraficasHumedad(humedadPerfectaPlanta,humedadMasGrandeDato,indicePlanta,dias,fechaDeCadaDato,indice_1,indice_2,titulo):
+    plt.plot(humedadPerfectaPlanta, label=indice_1, marker='o', color='blue')  # Puntos de array1
+    plt.plot(humedadMasGrandeDato, label=indice_2, marker='o', color='red')  # Puntos de array2
 
     # Añadir título y etiquetas
-    plt.title('Humedad mayor posible frente a la "Humedad perfecta"')
+    plt.title(titulo)
     plt.xlabel('Indice array')
     plt.ylabel('Humedad')
 
-    plt.savefig(f"Graficas/Rango_{dias}_dias_comparacion_humedades_planta_{indicePlanta + 1}.png")
+    #plt.savefig(f"Graficas/Rango_{dias}_dias_comparacion_humedades_planta_{indicePlanta + 1}.png")
 
     # Mostrar leyenda
     plt.legend()
@@ -713,8 +711,8 @@ def main():
     del X_IOT[4]
     del y[4]
 
-    del X_IOT[3]
-    del y[3]
+    del X_IOT[1]
+    del y[1]
 
     X,y=preparar_datos_normalizados_red(X_IOT,y)
 
@@ -797,6 +795,21 @@ def main():
 
     model.save('modelo_sin_imagenes_prueba.keras')
 
+
+def desnormalizar_valores(prediciones):
+    # Multiplicar por 100
+    array_multiplicado = prediciones * 100
+
+    # Redondear los valores del array multiplicado
+    array_redondeado = np.round(array_multiplicado, 1)
+
+    array_formateado = []
+    for num in array_redondeado:
+        array_formateado.append(num[0])
+
+    return array_formateado
+
+
 def main_probar_modelo():
     print("Recogiendo datos:")
     datosIOT = obtenerDatosIOT()
@@ -810,8 +823,8 @@ def main_probar_modelo():
     X_planta_objetivo = []
     y_planta_objetivo = []
 
-    X_planta_objetivo.append(X_IOT[3])
-    y_planta_objetivo.append(y[3])
+    X_planta_objetivo.append(X_IOT[1])
+    y_planta_objetivo.append(y[1])
 
     X, y = preparar_datos_normalizados_red(X_planta_objetivo, y_planta_objetivo)
 
@@ -825,22 +838,35 @@ def main_probar_modelo():
     y_pred_int = y_pred.argmax(axis=1)
     print(collections.Counter(y_pred_int), '\n')
 
+    y_pred_desnormalizado = desnormalizar_valores(y_pred)
+
+    y_desnormalizado = y * 100
+
+    crearGraficasHumedad(y_pred_desnormalizado, y_desnormalizado, 0, 3, 0,'Predicion realizada', 'Humedad perfecta', 'Predicion realizadas por el modelo frente a la "Humedad perfecta"')
+
     """
     modelo_imagenes = load_model('modelo_imagenes.keras')
 
     print("Modelo con imagenes: ")
 
-    y_pred = modelo_imagenes.predict(X)
+    y_pred = modelo_imagenes.predict([X)
 
     print('Predictions')
     y_pred_int = y_pred.argmax(axis=1)
     print(collections.Counter(y_pred_int), '\n')
+
+    y_pred_desnormalizado = desnormalizar_valores(y_pred)
+
+    y_desnormalizado = y * 100
+
+    crearGraficasHumedad(y_pred_desnormalizado, y_desnormalizado, 0, 3, 0, 'Predicion realizada', 'Humedad perfecta',
+                         'Predicion realizadas por el modelo frente a la "Humedad perfecta"')
     """
 
 if __name__ == '__main__':
     probar_modelo = True
 
-    entrenar_con_imagen = False
+    entrenar_con_imagen = True
 
     if probar_modelo:
         main_probar_modelo()
