@@ -1,5 +1,8 @@
 import sys
 
+import os
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -10,6 +13,8 @@ import matplotlib.dates as mdates
 from datetime import datetime, timedelta
 import calendar, locale
 
+from keras.src.saving import load_model, register_keras_serializable
+
 locale.setlocale(locale.LC_ALL,'es_ES')
 
 import sklearn
@@ -17,9 +22,6 @@ from sklearn.model_selection import train_test_split, StratifiedKFold, KFold
 from sklearn import metrics
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import cross_val_score
-
-import os
-os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
 import tensorflow as tf
 from tensorflow import keras
@@ -48,13 +50,15 @@ from PIL import Image
 import psycopg2
 from psycopg2 import Error
 
+probar_modelo = True
+
 #Entrenamiento
 batch_size = 64
 nb_classes = 3
-epochs = 100
+epochs = 20
 crossValidationSplit = 2
 busquedaMejorTuplaDias = 3
-entrenar_con_imagen = True
+entrenar_con_imagen = False
 planta_imagen = 1
 # numero de tuplas = 5(intervalo entre cada dato)*12( tranformacion a una hora)*24(a un dia)*5(a 5 dias)
 
@@ -513,7 +517,7 @@ def preparar_datos_normalizados_red(X, y):
 
 
 def cnn_model_IOT(input_shape):
-    inputs = layers.Input(shape=(input_shape,))
+    inputs = layers.Input(shape=input_shape)
 
     x = layers.Dense(256, activation='relu')(inputs)
 
@@ -554,7 +558,7 @@ def cnn_model_imagenes_IOT(input_shape_image, input_shape_tuple):
     model = models.Model(inputs=[input_image, input_tuple], outputs=output)
     return model
 
-
+@register_keras_serializable()
 def custom_loss(y_true, y_pred):
     # Clip predictions to avoid log(0) or log(1) which are undefined.
     y_pred = tf.clip_by_value(y_pred, 1e-7, 1 - 1e-7)
@@ -614,6 +618,8 @@ def mainImagenes():
 
     # CV - 10
     kf = KFold(n_splits=crossValidationSplit, shuffle=True, random_state=123)
+
+    #register_keras_serializable.register(custom_loss)
 
     splitEntrenamiento = 1
 
@@ -691,6 +697,8 @@ def mainImagenes():
             print("Valor predicho:", y_sample_pred[i])
             print("-------------------------")
 
+    model.save('modelo_imagenes.keras')
+
 def main():
     print("Recogiendo datos:")
     datosIOT = obtenerDatosIOT()
@@ -704,6 +712,9 @@ def main():
     #Eliminamos el sensor de C02
     del X_IOT[4]
     del y[4]
+
+    del X_IOT[3]
+    del y[3]
 
     X,y=preparar_datos_normalizados_red(X_IOT,y)
 
@@ -784,108 +795,57 @@ def main():
             print("Valor predicho:", y_sample_pred[i])
             print("-------------------------")
 
+    model.save('modelo_sin_imagenes_prueba.keras')
+
+def main_probar_modelo():
+    print("Recogiendo datos:")
+    datosIOT = obtenerDatosIOT()
+
+    datos_por_Planta = dividrDatosIOTporPlanta(datosIOT)
+
+    X_IOT = eliminar_datos_inecesarios(datos_por_Planta)
+
+    y = asignarHumedadPerfecta()
+
+    X_planta_objetivo = []
+    y_planta_objetivo = []
+
+    X_planta_objetivo.append(X_IOT[3])
+    y_planta_objetivo.append(y[3])
+
+    X, y = preparar_datos_normalizados_red(X_planta_objetivo, y_planta_objetivo)
+
+    modelo_sin_imagenes = load_model('modelo_sin_imagenes_prueba.keras')
+
+    print("Modelo sin imagenes: ")
+
+    y_pred = modelo_sin_imagenes.predict(X)
+
+    print('Predictions')
+    y_pred_int = y_pred.argmax(axis=1)
+    print(collections.Counter(y_pred_int), '\n')
+
     """
-    # CNN layer need an additional chanel to colors (32 x 32 x 1)
-    print('N samples, witdh, height, channels',X.shape)
+    modelo_imagenes = load_model('modelo_imagenes.keras')
 
-    #El data set contiene 1583+4273=5856 imagenes
-    kf = StratifiedKFold(n_splits=crossValidationSplit, shuffle=True, random_state=123)
+    print("Modelo con imagenes: ")
 
-    splitEntrenamiento = 1
+    y_pred = modelo_imagenes.predict(X)
 
-    for train_index, test_index in kf.split(X, y):
-        X_train, X_test = X[train_index], X[test_index]
-        y_train, y_test = y[train_index], y[test_index]
-
-        train_datagen = datagen.flow(X_train, y_train, batch_size=batch_size)
-
-        print("Número de imágenes generadas:", len(train_datagen) * batch_size)
-
-        print(f'x_train {X_train.shape} x_test {X_test.shape}')
-        print(f'y_train {y_train.shape} y_test {y_test.shape}')
-
-        model = cnn_model(input_shape, nb_classes)
-        print(model.summary())
-
-        model.compile(loss='sparse_categorical_crossentropy',optimizer='adam', metrics=['accuracy'])
-
-        #model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs, validation_split=0.1, verbose=2)
-        history = model.fit(train_datagen, steps_per_epoch=len(X_train) // batch_size, epochs=epochs, validation_data=(X_test, y_test), verbose=2)
-
-        # Obtener las métricas del historial
-        acc = history.history['accuracy']
-        val_acc = history.history['val_accuracy']
-        loss = history.history['loss']
-        val_loss = history.history['val_loss']
-
-        # Graficar la precisión
-        plt.figure(figsize=(12, 4))
-        plt.subplot(1, 2, 1)
-        plt.plot(acc, label='Training Accuracy')
-        plt.plot(val_acc, label='Validation Accuracy')
-        plt.legend()
-        plt.title('Training and Validation Accuracy')
-        plt.xlabel('Epochs')
-        plt.ylabel('Accuracy')
-
-        # Graficar la pérdida
-        plt.subplot(1, 2, 2)
-        plt.plot(loss, label='Training Loss')
-        plt.plot(val_loss, label='Validation Loss')
-        plt.legend()
-        plt.title('Training and Validation Loss')
-        plt.xlabel('Epochs')
-        plt.ylabel('Loss')
-
-        plt.show()
-
-        shap.explainers._deep.deep_tf.op_handlers["AddV2"] = shap.explainers._deep.deep_tf.passthrough
-
-        #Visualizar datos del split
-        loss, acc = model.evaluate(X_test, y_test, batch_size=batch_size)
-        y_pred = model.predict(X_test)
-        #resultadosROC.append(roc_auc_score(y_test, y_pred[:, 1],multi_class='ovr'))
-        resultadosROC.append(roc_auc_score(y_test, y_pred, multi_class='ovr'))
-        print(f"Split numero {splitEntrenamiento}:")
-        print(f'loss: {loss:.2f} acc: {acc:.2f}')
-        #print(f'AUC {roc_auc_score(y_test, y_pred[:, 1], ):.4f}')
-        print(f'AUC {resultadosROC[splitEntrenamiento-1]:.4f}')
-
-        print('Predictions')
-        y_pred_int = y_pred.argmax(axis=1)
-        print(collections.Counter(y_pred_int), '\n')
-
-        print('Metrics')
-        print(metrics.classification_report(y_test, y_pred_int, target_names=['Normal', 'Pneumonia_bacteriana', 'Pneumonia_viral']))
-
-        print('Confusion matrix')
-        metrics.ConfusionMatrixDisplay(metrics.confusion_matrix(y_test, y_pred_int),
-                                       display_labels=['NORMAL', 'PNEUMONIA_BACTERIANA','PNEUMONIA_VIRAL']).plot()
-        plt.show()
-
-        # Selecciona 10 imágenes al azar de X_test
-        indices = np.random.choice(np.arange(len(X_test)), size=10, replace=False)
-        X_explain = X_test[indices]
-
-        # Usa solo un subset de X_train
-        X_train_subset = X_train[:1000]
-        explainer = shap.DeepExplainer(model, X_train_subset)
-
-        # Calcula los valores SHAP
-        shap_values = explainer.shap_values(X_explain)
-
-        # Visualiza los valores SHAP
-        shap.image_plot(shap_values, -X_explain)
-
-        splitEntrenamiento += 1
-
-    GuardarValoresROCfichero()
-
-    print("Fin de entrenamiento")
+    print('Predictions')
+    y_pred_int = y_pred.argmax(axis=1)
+    print(collections.Counter(y_pred_int), '\n')
     """
 
 if __name__ == '__main__':
-    if entrenar_con_imagen:
-        mainImagenes()
+    probar_modelo = True
+
+    entrenar_con_imagen = False
+
+    if probar_modelo:
+        main_probar_modelo()
     else:
-        main()
+        if entrenar_con_imagen:
+            mainImagenes()
+        else:
+            main()
