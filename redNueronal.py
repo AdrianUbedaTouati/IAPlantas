@@ -53,7 +53,7 @@ from psycopg2 import Error
 #Entrenamiento
 batch_size = 64
 nb_classes = 3
-epochs = 40
+epochs = 100
 crossValidationSplit = 2
 busquedaMejorTuplaDias = 3
 
@@ -571,7 +571,7 @@ def GuardarValoresROCfichero():
         file.write(' '.join(map(str, resultadosROC)))
 
 ##################################################################################
-# Main program
+# Mains program
 ##################################################################################
 def mainImagenes():
     print("Recogiendo datos:")
@@ -793,7 +793,7 @@ def main():
             print("Valor predicho:", y_sample_pred[i])
             print("-------------------------")
 
-    model.save('modelo_sin_imagenes_prueba.keras')
+    model.save('modelo_sin_imagenes.keras')
 
 
 def desnormalizar_valores(prediciones):
@@ -828,7 +828,7 @@ def main_probar_modelo():
 
     X, y = preparar_datos_normalizados_red(X_planta_objetivo, y_planta_objetivo)
 
-    modelo_sin_imagenes = load_model('modelo_sin_imagenes_prueba.keras')
+    modelo_sin_imagenes = load_model('modelo_sin_imagenes.keras')
 
     print("Modelo sin imagenes: ")
 
@@ -864,7 +864,7 @@ def main_probar_modelo():
     """
 
 if __name__ == '__main__':
-    probar_modelo = True
+    probar_modelo = False
 
     entrenar_con_imagen = True
 
