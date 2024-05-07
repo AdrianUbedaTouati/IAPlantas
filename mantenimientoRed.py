@@ -128,7 +128,7 @@ def eliminar_datos_inecesarios(datos_IOT_ordenados_por_planta):
 
 def preparar_datos_normalizados_red(X):
     # Inicializamos un nuevo array para almacenar todas las tuplas
-    valores_normalizados_X = []
+    datos_por_planta_normalizados = []
 
     max_X = [-1,-1,-1,-1,-1,-1,-1,-1,-1]
 
@@ -146,9 +146,10 @@ def preparar_datos_normalizados_red(X):
     # Normalizar
 
     # Iteramos sobre cada array interno en X
-    for sub_array in X:
+    for planta in X:
+        valores_normalizados_planta = []
         # Iteramos sobre cada tupla dentro del array interno y las normalizamos
-        for tupla in sub_array:
+        for tupla in planta:
             contador = 0
             tupla_normalizada = []
             for elemento in tupla:
@@ -156,10 +157,11 @@ def preparar_datos_normalizados_red(X):
                 tupla_normalizada.append(valor_normalizado)
                 contador += 1
 
-            valores_normalizados_X.append(tuple(tupla_normalizada))
+            valores_normalizados_planta.append(tuple(tupla_normalizada))
+        datos_por_planta_normalizados.append(np.array(valores_normalizados_planta))
 
 
-    return np.array(valores_normalizados_X)
+    return datos_por_planta_normalizados
 
 def desnormalizar_valores(prediciones):
     # Multiplicar por 100
