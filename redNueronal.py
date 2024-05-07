@@ -711,9 +711,6 @@ def main():
     del X_IOT[4]
     del y[4]
 
-    del X_IOT[1]
-    del y[1]
-
     X,y=preparar_datos_normalizados_red(X_IOT,y)
 
     #CV - 10
@@ -793,7 +790,7 @@ def main():
             print("Valor predicho:", y_sample_pred[i])
             print("-------------------------")
 
-    model.save('modelo_sin_imagenes.keras')
+    model.save('modelo.keras')
 
 
 def desnormalizar_valores(prediciones):
@@ -866,7 +863,7 @@ def main_probar_modelo():
 if __name__ == '__main__':
     probar_modelo = False
 
-    entrenar_con_imagen = True
+    entrenar_con_imagen = False
 
     if probar_modelo:
         main_probar_modelo()

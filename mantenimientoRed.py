@@ -54,33 +54,58 @@ from PIL import Image
 import psycopg2
 from psycopg2 import Error
 
-####################
-#Variables Globales#
-####################
+######################
+# Variables Globales #
+######################
 tiempo_entre_busquedas = 5 #En minutos
-datos_por_planta = []
-pred_por_planta = []
-ultimo_id = 0
 datos_nuevos = []
-modelo = load_model('modelo_sin_imagenes.keras')
+datos_por_planta = []
+prediccion_por_planta = []
+ultimo_id = 0
 
-def dividrDatosIOTporPlanta(datosIOT):
-    global datos_por_planta
+@register_keras_serializable()
+def custom_loss(y_true, y_pred):
+    # Clip predictions to avoid log(0) or log(1) which are undefined.
+    y_pred = tf.clip_by_value(y_pred, 1e-7, 1 - 1e-7)
+    # Calculate binary cross-entropy loss
+    loss = -tf.reduce_mean(y_true * tf.math.log(y_pred) + (1 - y_true) * tf.math.log(1 - y_pred))
+    return loss
 
-    contador = 0
 
-    lecturaCompleta = []
+def dividir_datos_por_planta(datosIOT):
+    datos_por_planta = []
+
+    planta = 1
+    datos_por_planta_desorganizados = []
+    datos_planta = []
     for datoIOT in datosIOT:
-        contador = contador + 1
-        planta = datoIOT[1]
-        lecturaCompleta.append(datoIOT)
-        if (contador == 16 and planta != 5) or (contador == 11 and planta == 5):
-            datos_por_planta[planta - 1].append(lecturaCompleta)
-            lecturaCompleta = []
-            contador = 0
+        if planta != datoIOT[1]:
+            datos_por_planta_desorganizados.append(datos_planta)
+            datos_planta = []
+            planta = datoIOT[1]
+
+        datos_planta.append(datoIOT)
+
+    for datos_planta in  datos_por_planta_desorganizados:
+        datos_por_planta.append(juntar_datos_planta(datos_planta))
 
     return datos_por_planta
 
+def juntar_datos_planta(datos_planta):
+    datos_organizados = []
+    contador = 0
+    lecturaCompleta = []
+    for datos in datos_planta:
+        contador = contador + 1
+        planta = datos[1]
+        lecturaCompleta.append(datos)
+        if (contador == 16 and planta != 5) or (contador == 11 and planta == 5):
+            datos_organizados.append(lecturaCompleta)
+            lecturaCompleta = []
+            contador = 0
+
+
+    return datos_organizados
 def eliminar_datos_inecesarios(datos_IOT_ordenados_por_planta):
     datos_IOT_refinados_por_planta = []
     for planta in datos_IOT_ordenados_por_planta:
@@ -160,35 +185,56 @@ def crear_grafica(datos_por_planta,pred_por_planta):
     return ""
 
 def recoger_datos_nuevos():
+    global datos_nuevos
     print("Recogiendo datos...")
+
+    try:
+        conexion = psycopg2.connect(database='PlantasIA', user='postgres', password="@Andriancito2012@")
+        cursor = conexion.cursor()
+
+        comando = f'''SELECT * FROM public."DatosIOT"
+    	            where id >= {ultimo_id}
+                ORDER BY device_id, date, signal_id ASC '''
+
+        cursor.execute(comando)
+        datos_nuevos = cursor.fetchall()
+    except Error as e:
+        print("Error en la conexion: ", e)
+
+    print("Datos recogidos correctamente")
+
+    return datos_nuevos
     #Conexion con SQL
     #Hacer peticion SQL id>ultimo_id
     #Guardar datos en variable global
-    datos_nuevos
+
 
 def mantenimiento():
-    global pred_por_planta
+    global datos_nuevos
 
     print("Creando graficas...")
 
-    datos_por_Planta = dividrDatosIOTporPlanta(datos_nuevos)
+    datos_por_planta = dividir_datos_por_planta(datos_nuevos)
 
-    X_IOT = eliminar_datos_inecesarios(datos_por_Planta)
+    X_IOT = eliminar_datos_inecesarios(datos_por_planta)
 
     X_normalizado = preparar_datos_normalizados_red(X_IOT)
 
     for planta_normalizada in X_normalizado:
-        pred_por_planta.append(planta_normalizada)
+        prediccion_por_planta.append(planta_normalizada)
 
     for i in range(len(datos_por_planta)):
-        crear_grafica(datos_por_planta[i], pred_por_planta[i])
+        crear_grafica(datos_por_planta[i], prediccion_por_planta[i])
 
 
 if __name__ == '__main__':
-
+    modelo = load_model('modelo.keras')
     while True:
         recoger_datos = threading.Thread(target=recoger_datos_nuevos)
         recoger_datos.start()
         recoger_datos.join()
+        realizar_mantenimiento = threading.Thread(target=mantenimiento)
+        realizar_mantenimiento.start()
+        realizar_mantenimiento.join()
         # Espera x minutos antes de la próxima llamada
         time.sleep(tiempo_entre_busquedas * 60)
