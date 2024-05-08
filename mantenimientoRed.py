@@ -1,6 +1,5 @@
 
 import sys
-import plotly.graph_objects as go
 import os
 import threading
 import time
@@ -56,14 +55,26 @@ from PIL import Image
 import psycopg2
 from psycopg2 import Error
 
+#Graficas
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+from IPython.display import display, Javascript
+import plotly.io as pio
+import webbrowser
+
+
+
+
 ######################
 # Variables Globales #
 ######################
-tiempo_entre_busquedas = 5 #En minutos
+tiempo_entre_busquedas = 0.5 #En minutos
 datos_nuevos = []
 datos_por_planta = []
 prediccion_por_planta = []
 ultimo_id = 0
+
+pagina_abierta = False
 
 @register_keras_serializable()
 def custom_loss(y_true, y_pred):
@@ -210,10 +221,30 @@ def obtener_dato(sensor_tupla, dato_tupla , datos_por_planta):
 
     return dato_indice_por_plantas
 
-def crear_grafica(datos_por_planta,pred_por_planta,indicePlanta,dias,fecha_datos,indice_1,indice_2,titulo):
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=fecha_datos, y= datos_por_planta, mode='lines', name=indice_1))
-    fig.add_trace(go.Scatter(x=fecha_datos, y=pred_por_planta, mode='lines', name=indice_2))
+def crear_graficas(datos_por_plantas,pred_por_plantas,indicePlanta,dias,fecha_datos_plantas,indice_1,indice_2,titulo):
+    global pagina_abierta
+
+    fig = make_subplots(rows=2, cols=2, subplot_titles=("Planta 1", "Planta 2", "Planta 3", "Planta 4"))
+
+    color_verde = 'rgb(46, 204, 113)'  # Verde
+    color_azul = 'rgb(52, 152, 219)'  # Azul
+
+    linea = 1
+    columna = 1
+    for i in range(len(datos_por_plantas)):
+
+        if linea == 3:
+            columna = 2
+            linea = 1
+
+        fecha_datos = fecha_datos_plantas[i]
+        dato_por_planta = datos_por_plantas[i]
+        pred_por_planta = pred_por_plantas[i]
+
+        fig.add_trace(go.Scatter(x=fecha_datos, y=dato_por_planta, mode='lines', name=indice_1, marker=dict(color = color_azul)), row = linea, col = columna)
+        fig.add_trace(go.Scatter(x=fecha_datos, y=pred_por_planta, mode='lines', name=indice_2, marker=dict(color = color_verde)), row = linea, col = columna)
+
+        linea = linea + 1
 
     # Personalizar el diseño del gráfico
     fig.update_layout(
@@ -224,25 +255,25 @@ def crear_grafica(datos_por_planta,pred_por_planta,indicePlanta,dias,fecha_datos
         hovermode='closest'
     )
 
-    # Mostrar el gráfico
-    fig.show()
+    fig.write_html('graficas.html')
+
+    if not(pagina_abierta):
+        pagina_abierta = True
+        abrir_html_en_navegador()
+
+
+def abrir_html_en_navegador():
+    webbrowser.open_new_tab('graficas.html')  # Abre una nueva pestaña para evitar cerrar la anterior
+    # Esto es JavaScript para recargar la página automáticamente
+    script = f"""
+    <script>
+        setTimeout(function() {{
+            window.location.reload(true);
+        }}, {tiempo_entre_busquedas * 60 * 1000});
+    </script>
     """
-    plt.plot(datos_por_planta, label=indice_1, marker='o', color='blue')  # Puntos de array1
-    plt.plot(pred_por_planta, label=indice_2, marker='o', color='red')  # Puntos de array2
-
-    # Añadir título y etiquetas
-    plt.title(titulo)
-    plt.xlabel('Indice array')
-    plt.ylabel('Humedad')
-
-    #plt.savefig(f"Graficas/Rango_{dias}_dias_comparacion_humedades_planta_{indicePlanta + 1}.png")
-
-    # Mostrar leyenda
-    plt.legend()
-
-    # Mostrar el gráfico
-    plt.show()
-    """
+    with open('graficas.html', 'a') as f:
+        f.write(script)
 
 def recoger_datos_nuevos():
     global datos_nuevos
@@ -293,13 +324,11 @@ def mantenimiento():
 
     print("Creando graficas...")
 
-    indice_humedad = 'Humedad perfecta'
-    indice_predicion = 'Predicion realizada'
-    titulo = 'Predicion realizadas por el modelo frente a la "Humedad perfecta"'
+    indice_humedad = 'Humedad planta'
+    indice_predicion = 'Prediccion IA'
+    titulo = 'Predicciones realizadas por el modelo frente a la humedad real de la planta'
 
-    for i in range(len(humedad_por_plantas)):
-        crear_grafica(humedad_por_plantas[i], prediccion_por_planta[i],0,0,fecha_datos_plantas[i],indice_humedad,indice_predicion,titulo)
-        break
+    crear_graficas(humedad_por_plantas, prediccion_por_planta,0,0,fecha_datos_plantas,indice_humedad,indice_predicion,titulo)
 
 
 if __name__ == '__main__':
@@ -312,4 +341,5 @@ if __name__ == '__main__':
         realizar_mantenimiento.start()
         realizar_mantenimiento.join()
         # Espera x minutos antes de la próxima llamada
+        print(f"Esperando {tiempo_entre_busquedas} minutos...")
         time.sleep(tiempo_entre_busquedas * 60)
