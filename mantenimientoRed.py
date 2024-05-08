@@ -68,11 +68,14 @@ import webbrowser
 ######################
 # Variables Globales #
 ######################
+alterta_diferencia_humedad_amarilla = 25
+alterta_diferencia_humedad_roja = 50
 tiempo_entre_busquedas = 0.5 #En minutos
 datos_nuevos = []
 datos_por_planta = []
 prediccion_por_planta = []
 ultimo_id = 0
+
 
 pagina_abierta = False
 
@@ -223,8 +226,32 @@ def obtener_dato(sensor_tupla, dato_tupla , datos_por_planta):
 
 def crear_graficas(datos_por_plantas,pred_por_plantas,indicePlanta,dias,fecha_datos_plantas,indice_1,indice_2,titulo):
     global pagina_abierta
+    global alterta_diferencia_humedad_amarilla
+    global alterta_diferencia_humedad_roja
 
-    fig = make_subplots(rows=2, cols=2, subplot_titles=("Planta 1", "Planta 2", "Planta 3", "Planta 4"))
+
+
+    planta_1 = "Planta 1🔴"
+    planta_2 = "Planta 2🔴"
+    planta_3 = "Planta 3🔴"
+    planta_4 = "Planta 4🔴"
+
+    nombres = []
+    diferencia_humedad_plantas = []
+
+    for i in range(len(datos_por_plantas)):
+        diferencia_humedad_plantas.append(abs(datos_por_plantas[i][-1] - pred_por_plantas[i][-1]))
+        nombres.append(f"Planta {i+1}")
+
+    for i in range(len(datos_por_plantas)):
+        if diferencia_humedad_plantas[i] >= alterta_diferencia_humedad_roja:
+            nombres[i] = nombres[i] + "🔴"
+        elif diferencia_humedad_plantas[i] >= alterta_diferencia_humedad_amarilla:
+            nombres[i] = nombres[i] + "🟡"
+        else:
+            nombres[i] = nombres[i] + "🟢"
+
+    fig = make_subplots(rows=2, cols=2, subplot_titles=nombres)
 
     color_verde = 'rgb(46, 204, 113)'  # Verde
     color_azul = 'rgb(52, 152, 219)'  # Azul
