@@ -466,7 +466,7 @@ def preparar_datos_normalizados_red(X, y):
     nuevo_X = []
     nuevo_y = []
 
-    max_X = [-1,-1,-1,-1,-1,-1,-1,-1,-1]
+    max_X = [100,-1,-1,-1,-1,-1,-1,-1,-1]
     max_y = 100
 
     #Buscar los valores maximos

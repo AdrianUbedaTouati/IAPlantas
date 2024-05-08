@@ -1,9 +1,11 @@
 
 import sys
-
+import plotly.graph_objects as go
 import os
 import threading
 import time
+
+import numpy
 
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
@@ -130,7 +132,7 @@ def preparar_datos_normalizados_red(X):
     # Inicializamos un nuevo array para almacenar todas las tuplas
     datos_por_planta_normalizados = []
 
-    max_X = [-1,-1,-1,-1,-1,-1,-1,-1,-1]
+    max_X = [100,-1,-1,-1,-1,-1,-1,-1,-1]
 
     #Buscar los valores maximos
     for sub_array in X:
@@ -176,15 +178,71 @@ def desnormalizar_valores(prediciones):
 
     return array_formateado
 
-def pred_planta(planta_normalizada):
+def prediccion_plantas(planta_normalizada):
     y_pred_normalizada = modelo.predict(planta_normalizada)
 
     y_pred = desnormalizar_valores(y_pred_normalizada)
 
     return y_pred
 
-def crear_grafica(datos_por_planta,pred_por_planta):
-    return ""
+def obtener_humedad(plantas_normalizadas):
+    humedad_por_plantas = []
+
+    for datos_planta in plantas_normalizadas:
+        planta = []
+        for tupla in datos_planta:
+            planta.append(numpy.array(tupla)[0]*100)
+        humedad_por_plantas.append(planta)
+
+    return humedad_por_plantas
+
+def obtener_dato(sensor_tupla, dato_tupla , datos_por_planta):
+    dato_indice_por_plantas = []
+
+    for datos_planta in datos_por_planta:
+        planta = []
+        for tuplas in datos_planta:
+            for tupla in tuplas:
+                if(tupla[1] % sensor_tupla == 0):
+                    planta.append(tupla[dato_tupla])
+                    break
+        dato_indice_por_plantas.append(planta)
+
+    return dato_indice_por_plantas
+
+def crear_grafica(datos_por_planta,pred_por_planta,indicePlanta,dias,fecha_datos,indice_1,indice_2,titulo):
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=fecha_datos, y= datos_por_planta, mode='lines', name=indice_1))
+    fig.add_trace(go.Scatter(x=fecha_datos, y=pred_por_planta, mode='lines', name=indice_2))
+
+    # Personalizar el diseño del gráfico
+    fig.update_layout(
+        title=titulo,
+        xaxis=dict(title='Fecha de los datos'),
+        yaxis=dict(title='Humedad'),
+        showlegend=True,
+        hovermode='closest'
+    )
+
+    # Mostrar el gráfico
+    fig.show()
+    """
+    plt.plot(datos_por_planta, label=indice_1, marker='o', color='blue')  # Puntos de array1
+    plt.plot(pred_por_planta, label=indice_2, marker='o', color='red')  # Puntos de array2
+
+    # Añadir título y etiquetas
+    plt.title(titulo)
+    plt.xlabel('Indice array')
+    plt.ylabel('Humedad')
+
+    #plt.savefig(f"Graficas/Rango_{dias}_dias_comparacion_humedades_planta_{indicePlanta + 1}.png")
+
+    # Mostrar leyenda
+    plt.legend()
+
+    # Mostrar el gráfico
+    plt.show()
+    """
 
 def recoger_datos_nuevos():
     global datos_nuevos
@@ -214,19 +272,34 @@ def recoger_datos_nuevos():
 def mantenimiento():
     global datos_nuevos
 
-    print("Creando graficas...")
+    print("Tratando datos...")
 
     datos_por_planta = dividir_datos_por_planta(datos_nuevos)
 
+    fecha_datos_plantas = obtener_dato(1,4,datos_por_planta)
+
     X_IOT = eliminar_datos_inecesarios(datos_por_planta)
 
+    #Tenemos un array con tantos array como plantas donde hay arrays de tuplas
     X_normalizado = preparar_datos_normalizados_red(X_IOT)
 
-    for planta_normalizada in X_normalizado:
-        prediccion_por_planta.append(planta_normalizada)
+    humedad_por_plantas = obtener_humedad(X_normalizado)
 
-    for i in range(len(datos_por_planta)):
-        crear_grafica(datos_por_planta[i], prediccion_por_planta[i])
+    print("Realizando predicciones...")
+
+    for planta_normalizada in X_normalizado:
+        prediccion_por_planta.append(prediccion_plantas(planta_normalizada))
+
+
+    print("Creando graficas...")
+
+    indice_humedad = 'Humedad perfecta'
+    indice_predicion = 'Predicion realizada'
+    titulo = 'Predicion realizadas por el modelo frente a la "Humedad perfecta"'
+
+    for i in range(len(humedad_por_plantas)):
+        crear_grafica(humedad_por_plantas[i], prediccion_por_planta[i],0,0,fecha_datos_plantas[i],indice_humedad,indice_predicion,titulo)
+        break
 
 
 if __name__ == '__main__':
