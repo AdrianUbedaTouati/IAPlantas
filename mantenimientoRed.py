@@ -62,22 +62,23 @@ from IPython.display import display, Javascript
 import plotly.io as pio
 import webbrowser
 
-
-
-
 ######################
 # Variables Globales #
 ######################
-alterta_diferencia_humedad_amarilla = 25
-alterta_diferencia_humedad_roja = 50
 tiempo_entre_busquedas = 0.5 #En minutos
 datos_nuevos = []
 datos_por_planta = []
 prediccion_por_planta = []
 ultimo_id = 0
 
-
+######################
+# Variables Graficos #
+######################
 pagina_abierta = False
+alterta_diferencia_humedad_roja = 50
+alterta_diferencia_humedad_amarilla = 25
+num_columnas_pagina = 2
+num_lineas_pagina = 2
 
 @register_keras_serializable()
 def custom_loss(y_true, y_pred):
@@ -226,15 +227,6 @@ def obtener_dato(sensor_tupla, dato_tupla , datos_por_planta):
 
 def crear_graficas(datos_por_plantas,pred_por_plantas,indicePlanta,dias,fecha_datos_plantas,indice_1,indice_2,titulo):
     global pagina_abierta
-    global alterta_diferencia_humedad_amarilla
-    global alterta_diferencia_humedad_roja
-
-
-
-    planta_1 = "Planta 1🔴"
-    planta_2 = "Planta 2🔴"
-    planta_3 = "Planta 3🔴"
-    planta_4 = "Planta 4🔴"
 
     nombres = []
     diferencia_humedad_plantas = []
@@ -251,7 +243,7 @@ def crear_graficas(datos_por_plantas,pred_por_plantas,indicePlanta,dias,fecha_da
         else:
             nombres[i] = nombres[i] + "🟢"
 
-    fig = make_subplots(rows=2, cols=2, subplot_titles=nombres)
+    fig = make_subplots(rows=num_lineas_pagina, cols=num_columnas_pagina, subplot_titles=nombres)
 
     color_verde = 'rgb(46, 204, 113)'  # Verde
     color_azul = 'rgb(52, 152, 219)'  # Azul
@@ -260,8 +252,8 @@ def crear_graficas(datos_por_plantas,pred_por_plantas,indicePlanta,dias,fecha_da
     columna = 1
     for i in range(len(datos_por_plantas)):
 
-        if linea == 3:
-            columna = 2
+        if linea == num_lineas_pagina + 1:
+            columna = columna + 1
             linea = 1
 
         fecha_datos = fecha_datos_plantas[i]
@@ -282,7 +274,18 @@ def crear_graficas(datos_por_plantas,pred_por_plantas,indicePlanta,dias,fecha_da
         hovermode='closest'
     )
 
+    #Tabla resumen
+    tabla = go.Figure(data=[go.Table(
+        header=dict(values=['Estado plantas']),  # Reemplaza estos valores con tus propios encabezados
+        cells=dict(values=[nombres])
+        # Reemplaza estos valores con tus propios datos
+    )])
+
+    tabla.write_html('tabla_plantas.html')
+
     fig.write_html('graficas.html')
+
+    insertar_tabla_en_pagina_graficas()
 
     if not(pagina_abierta):
         pagina_abierta = True
@@ -301,6 +304,25 @@ def abrir_html_en_navegador():
     """
     with open('graficas.html', 'a') as f:
         f.write(script)
+
+def insertar_tabla_en_pagina_graficas():
+    # Leer el contenido de tabla_plantas.html con codificación utf-8
+    with open('tabla_plantas.html', 'r', encoding='utf-8') as tabla_file:
+        tabla_content = tabla_file.read()
+
+    # Leer el contenido de graficas.html
+    with open('graficas.html', 'r', encoding='utf-8') as graficas_file:
+        graficas_content = graficas_file.read()
+
+    # Encontrar el índice donde insertar la tabla
+    insert_index = graficas_content.find('</body>')
+
+    # Insertar la tabla al final de graficas.html
+    nuevo_contenido = graficas_content[:insert_index] + tabla_content + graficas_content[insert_index:]
+
+    # Escribir el nuevo contenido en graficas.html
+    with open('graficas.html', 'w', encoding='utf-8') as graficas_file:
+        graficas_file.write(nuevo_contenido)
 
 def recoger_datos_nuevos():
     global datos_nuevos
