@@ -8,8 +8,12 @@ Potasio -
 Salinidad -
 TDS -
 
+Maximos valores normales
 
 
+[100, 22.1, 1581.0, 9.0, 291.0, 719.0, 717.0, 869.0, 790.0]
+
+[174.0, 529.0, 14267.0, 11333.0, 1999.0, 1999.0, 1999.0, 7846.0, 20000.0]
 
 
 Podriamos hacer un sistema de recompensa en el que intentamos que la conductividad el nitrogeno fosforo potasio sean lo mas alta posibles sin que la humedad sea mas grande de 60 %

@@ -17,6 +17,13 @@ SELECT device_id, count( distinct signal_id) as numero_señales
 FROM public."NuevosDatosPlantasIA"
 GROUP BY device_id;
 
+SELECT * FROM "NuevosDatosPlantasIA"
+    	            where id >= {ultimo_id}
+                ORDER BY device_id, date, signal_id ASC
+
+SELECT * FROM "NuevosDatosPlantasIA"
+   where value::float >= 100 and signal_id % 16 = 1 and device_id != 5
+ORDER BY device_id, date, signal_id ASC
 -------------------------------------------
 
 SELECT name  FROM public."Signals"

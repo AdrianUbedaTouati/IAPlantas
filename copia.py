@@ -1,4 +1,3 @@
-
 import sys
 import os
 import threading
@@ -78,7 +77,7 @@ pagina_abierta = False
 alterta_diferencia_humedad_roja = 50
 alterta_diferencia_humedad_amarilla = 25
 num_columnas_pagina = 2
-num_lineas_pagina = 0 #automatico
+num_lineas_pagina = 2
 
 @register_keras_serializable()
 def custom_loss(y_true, y_pred):
@@ -103,17 +102,10 @@ def dividir_datos_por_planta(datosIOT):
 
         datos_planta.append(datoIOT)
 
-    #ultima planta
-    datos_por_planta_desorganizados.append(datos_planta)
-
-    # borramos el sesonr 4
-    del datos_por_planta_desorganizados[4]
-
-    for datos_planta in datos_por_planta_desorganizados:
+    for datos_planta in  datos_por_planta_desorganizados:
         datos_por_planta.append(juntar_datos_planta(datos_planta))
 
     return datos_por_planta
-
 
 def juntar_datos_planta(datos_planta):
     datos_organizados = []
@@ -121,49 +113,15 @@ def juntar_datos_planta(datos_planta):
     lecturaCompleta = []
     for datos in datos_planta:
         contador = contador + 1
+        planta = datos[1]
         lecturaCompleta.append(datos)
-        if contador == 16:
-            lectura_ordenada = sorted(lecturaCompleta, key=lambda x: x[2])
-            datos_organizados.append(lectura_ordenada)
+        if (contador == 16 and planta != 5) or (contador == 11 and planta == 5):
+            datos_organizados.append(lecturaCompleta)
             lecturaCompleta = []
             contador = 0
 
+
     return datos_organizados
-
-"""
-def juntar_datos_planta(datos_planta):
-    numero_de_datos_tupla = 16
-    principio_tupla = 1
-    final_tupla = 16
-
-    datos_planta_por_tuplas = []
-    planta = -1
-
-    lectura_tupla = []
-    for dato in datos_planta:
-        if planta != dato[1]:
-            if(principio_tupla > 1):
-                print("error")
-
-            planta = dato[1]
-            final_tupla = numero_de_datos_tupla * planta
-            principio_tupla = final_tupla - 15
-
-            lectura_tupla = []
-
-        if principio_tupla == final_tupla:
-            lectura_tupla.append(dato)
-            datos_planta_por_tuplas.append(lectura_tupla)
-            principio_tupla = final_tupla - 15
-            lectura_tupla = []
-        else:
-            lectura_tupla.append(dato)
-
-            principio_tupla = principio_tupla + 1
-
-    return datos_planta_por_tuplas
-"""
-
 def eliminar_datos_inecesarios(datos_IOT_ordenados_por_planta):
     datos_IOT_refinados_por_planta = []
     for planta in datos_IOT_ordenados_por_planta:
@@ -379,17 +337,9 @@ def recoger_datos_nuevos():
         conexion = psycopg2.connect(database='PlantasIA', user='postgres', password="@Andriancito2012@")
         cursor = conexion.cursor()
 
-        comando = f'''
-        SELECT * FROM public."NuevosDatosPlantasIA"
-	where date >= '2024-02-19 12:30:00' and date <= '2024-03-11 12:00:00'
-ORDER BY device_id, date, signal_id ASC
-
-        '''
-        """
-                SELECT * FROM "NuevosDatosPlantasIA"
+        comando = f'''SELECT * FROM public."DatosIOT"
     	            where id >= {ultimo_id}
-                ORDER BY device_id, date, signal_id ASC
-        """
+                ORDER BY device_id, date, signal_id ASC '''
 
         cursor.execute(comando)
         datos_nuevos = cursor.fetchall()
@@ -406,17 +356,10 @@ ORDER BY device_id, date, signal_id ASC
 
 def mantenimiento():
     global datos_nuevos
-    global num_columnas_pagina
-    global num_lineas_pagina
 
     print("Tratando datos...")
 
     datos_por_planta = dividir_datos_por_planta(datos_nuevos)
-
-    if(len(datos_por_planta) % num_columnas_pagina == 0):
-        num_lineas_pagina = int(len(datos_por_planta)/num_columnas_pagina)
-    else:
-        num_lineas_pagina = int(len(datos_por_planta) / num_columnas_pagina) + 1
 
     fecha_datos_plantas = obtener_dato(1,4,datos_por_planta)
 
