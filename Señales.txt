@@ -1,0 +1,23 @@
+Humedad
+Temperatura
+Conductividad -
+PH
+Nitrogeno -
+Fosforo -
+Potasio -
+Salinidad -
+TDS -
+
+
+
+
+
+Podriamos hacer un sistema de recompensa en el que intentamos que la conductividad el nitrogeno fosforo potasio sean lo mas alta posibles sin que la humedad sea mas grande de 60 %
+
+
+----------------
+
+Viendo el propio historial, ver cual a sido el mejor estado de la planta y ponerla como parametro de salida y ver la relacion que tiene con el resto de valores
+
+
+

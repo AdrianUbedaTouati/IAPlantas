@@ -78,7 +78,7 @@ pagina_abierta = False
 alterta_diferencia_humedad_roja = 50
 alterta_diferencia_humedad_amarilla = 25
 num_columnas_pagina = 2
-num_lineas_pagina = 2
+num_lineas_pagina = 0 #automatico
 
 @register_keras_serializable()
 def custom_loss(y_true, y_pred):
@@ -96,6 +96,8 @@ def dividir_datos_por_planta(datosIOT):
     datos_por_planta_desorganizados = []
     datos_planta = []
     for datoIOT in datosIOT:
+        if 5 == datoIOT[1]:
+            pass
         if planta != datoIOT[1]:
             datos_por_planta_desorganizados.append(datos_planta)
             datos_planta = []
@@ -114,9 +116,8 @@ def juntar_datos_planta(datos_planta):
     lecturaCompleta = []
     for datos in datos_planta:
         contador = contador + 1
-        planta = datos[1]
         lecturaCompleta.append(datos)
-        if (contador == 16 and planta != 5) or (contador == 11 and planta == 5):
+        if (contador == 16):
             datos_organizados.append(lecturaCompleta)
             lecturaCompleta = []
             contador = 0
@@ -332,9 +333,10 @@ def recoger_datos_nuevos():
         conexion = psycopg2.connect(database='PlantasIA', user='postgres', password="@Andriancito2012@")
         cursor = conexion.cursor()
 
-        comando = f'''SELECT * FROM public."DatosIOT"
-    	            where id >= {ultimo_id}
-                ORDER BY device_id, date, signal_id ASC '''
+        comando = f'''SELECT * FROM public."NuevosDatosPlantasIA"
+	where date >= '2024-02-19 12:30:00' and date <= '2024-03-11 12:00:00'
+ORDER BY device_id, date, signal_id ASC
+ '''
 
         cursor.execute(comando)
         datos_nuevos = cursor.fetchall()
@@ -351,10 +353,17 @@ def recoger_datos_nuevos():
 
 def mantenimiento():
     global datos_nuevos
+    global num_columnas_pagina
+    global num_lineas_pagina
 
     print("Tratando datos...")
 
     datos_por_planta = dividir_datos_por_planta(datos_nuevos)
+
+    if(len(datos_por_planta) % num_columnas_pagina == 0):
+        num_lineas_pagina = int(len(datos_por_planta)/num_columnas_pagina)
+    else:
+        num_lineas_pagina = int(len(datos_por_planta) / num_columnas_pagina) + 1
 
     fecha_datos_plantas = obtener_dato(1,4,datos_por_planta)
 
