@@ -88,7 +88,6 @@ def custom_loss(y_true, y_pred):
     loss = -tf.reduce_mean(y_true * tf.math.log(y_pred) + (1 - y_true) * tf.math.log(1 - y_pred))
     return loss
 
-
 def dividir_datos_por_planta(datosIOT):
     datos_por_planta = []
 
@@ -101,7 +100,11 @@ def dividir_datos_por_planta(datosIOT):
             datos_planta = []
             planta = datoIOT[1]
 
+        if datoIOT[0] == 1610213:
+            print("error") #pasado
+
         datos_planta.append(datoIOT)
+
 
     #ultima planta
     datos_por_planta_desorganizados.append(datos_planta)
@@ -112,21 +115,32 @@ def dividir_datos_por_planta(datosIOT):
     for datos_planta in datos_por_planta_desorganizados:
         datos_por_planta.append(juntar_datos_planta(datos_planta))
 
+    for datos_planta_wad in datos_por_planta:
+        for tuplas in datos_planta_wad:
+            for tupla in tuplas:
+                if tupla[0] == 1610213:
+                    print("error") #falla
+
     return datos_por_planta
 
 
 def juntar_datos_planta(datos_planta):
     datos_organizados = []
     contador = 0
+    anterior_sensor = -1;
     lecturaCompleta = []
     for datos in datos_planta:
-        contador = contador + 1
-        lecturaCompleta.append(datos)
-        if contador == 16:
-            lectura_ordenada = sorted(lecturaCompleta, key=lambda x: x[2])
-            datos_organizados.append(lectura_ordenada)
-            lecturaCompleta = []
-            contador = 0
+        if datos[2] != anterior_sensor:
+            #if datos[0] == 1610213:
+            #    print("error")
+            contador = contador + 1
+            anterior_sensor = datos[2]
+            lecturaCompleta.append(datos)
+            if contador == 16:
+                lectura_ordenada = sorted(lecturaCompleta, key=lambda x: x[2])
+                datos_organizados.append(lectura_ordenada)
+                lecturaCompleta = []
+                contador = 0
 
     return datos_organizados
 
@@ -166,47 +180,82 @@ def juntar_datos_planta(datos_planta):
 
 def eliminar_datos_inecesarios(datos_IOT_ordenados_por_planta):
     datos_IOT_refinados_por_planta = []
+    id = -1
+    primero = True
     for planta in datos_IOT_ordenados_por_planta:
 
         tuplasRefinadas = []
         # Recorremos el array principal
-        for datos in planta:
+        for tupla_datos in planta:
+
             tupla = []
             # Recorremos cada tupla en el subarray y añadimos el tercer valor a la lista
-            for dato in datos:
+            for dato in tupla_datos:
+                if primero:
+                    id = dato[0]
+                    primero = False
+
                 tupla.append(dato[3])
-                if float(dato[3]) > 100 and dato[2] == 79:
-                    print("Me cago en")
+
+            tupla.append(id)
+
+            if tupla[16] == 1610213:
+                print(tupla)
+
+            primero = True
 
             # Convertimos la lista de terceros valores en una tupla
-            tuplasRefinadas.append(tuple(tupla[i] for i in (0, 1, 2, 3, 4, 5, 6, 7, 8)))
+            tupla_refinada = tuple(tupla[i] for i in (0, 1, 2, 3, 4, 5, 6, 7, 8, 16))
+            tuplasRefinadas.append(tupla_refinada)
 
-
-        array_convertido = [(float(a), float(b), float(c), float(d), float(e), float(f), float(g), float(h), float(i)) for a, b, c, d, e, f, g, h, i in tuplasRefinadas]
+        array_convertido = [(float(a), float(b), float(c), float(d), float(e), float(f), float(g), float(h), float(i), int(j)) for a, b, c, d, e, f, g, h, i ,j in tuplasRefinadas]
         datos_IOT_refinados_por_planta.append(array_convertido)
 
+        #for tuplaa in array_convertido:
+        #    if tuplaa[9] == 1610213:
+        #        print(tuplaa[9])
+
+
     return datos_IOT_refinados_por_planta
+
+def eliminar_datos_malos(datos_planta):
+    max_X = [100, 22.1, 1581.0, 9.0, 291.0, 719.0, 717.0, 869.0, 790.0]
 
 def preparar_datos_normalizados_red(X):
     # Inicializamos un nuevo array para almacenar todas las tuplas
     datos_por_planta_normalizados = []
 
-    max_X = [100,-1,-1,-1,-1,-1,-1,-1,-1]
+    max_X = [100,-1,-1,-1,-1,-1,-1,-1,-1] #ultimo es el id luego lo borramos
+
+    max_X_por_planta = []
 
     #Buscar los valores maximos
-    for sub_array in X:
+    for planta in X:
+        max_X_planta = [-1,-1,-1,-1,-1,-1,-1,-1,-1] #ultimo es el id luego lo borramos
         # Iteramos sobre cada tupla dentro del array interno y las normalizamos
-        for tupla in sub_array:
+        for tupla in planta:
             contador = 0
             for elemento in tupla:
-                if max_X[contador] < elemento:
-                    max_X[contador] = elemento
-                    if float(elemento) > 100 and contador == 3:
-                        print("Me cago en")
+                #id
+                if contador == 9:
+                    break
+                if max_X_planta[contador] < elemento:
+                    max_X_planta[contador] = elemento
 
+                if max_X[contador] < elemento:
+                    if 20 < elemento and contador == 3:
+                        print(tupla)
+                    max_X[contador] = elemento
 
                 contador += 1
 
+        max_X_por_planta.append(max_X_planta)
+
+    print("General")
+    print(max_X)
+    print("Por planta")
+    for max_planta in max_X_por_planta:
+        print(max_planta)
     # Normalizar
 
     # Iteramos sobre cada array interno en X
@@ -217,6 +266,8 @@ def preparar_datos_normalizados_red(X):
             contador = 0
             tupla_normalizada = []
             for elemento in tupla:
+                if contador == 9:
+                    break
                 valor_normalizado = elemento / max_X[contador]
                 tupla_normalizada.append(valor_normalizado)
                 contador += 1
@@ -338,7 +389,6 @@ def crear_graficas(datos_por_plantas,pred_por_plantas,indicePlanta,dias,fecha_da
         pagina_abierta = True
         abrir_html_en_navegador()
 
-
 def abrir_html_en_navegador():
     webbrowser.open_new_tab('graficas.html')  # Abre una nueva pestaña para evitar cerrar la anterior
     # Esto es JavaScript para recargar la página automáticamente
@@ -380,15 +430,22 @@ def recoger_datos_nuevos():
         cursor = conexion.cursor()
 
         comando = f'''
-        SELECT * FROM public."NuevosDatosPlantasIA"
+SELECT * FROM public."NuevosDatosPlantasIA"
+    WHERE device_id > 0 and device_id < 6
+ORDER BY device_id, date, signal_id ASC
+        '''
+        """
+SELECT * FROM public."NuevosDatosPlantasIA"
 	where date >= '2024-02-19 12:30:00' and date <= '2024-03-11 12:00:00'
 ORDER BY device_id, date, signal_id ASC
 
-        '''
-        """
-                SELECT * FROM "NuevosDatosPlantasIA"
-    	            where id >= {ultimo_id}
-                ORDER BY device_id, date, signal_id ASC
+        SELECT * FROM "NuevosDatosPlantasIA"
+    where id >= {ultimo_id}
+ORDER BY device_id, date, signal_id ASC
+
+SELECT * FROM public."NuevosDatosPlantasIA"
+    WHERE device_id > 0 and device_id < 6
+ORDER BY device_id, date, signal_id ASC
         """
 
         cursor.execute(comando)
@@ -440,7 +497,6 @@ def mantenimiento():
     titulo = 'Predicciones realizadas por el modelo frente a la humedad real de la planta'
 
     crear_graficas(humedad_por_plantas, prediccion_por_planta,0,0,fecha_datos_plantas,indice_humedad,indice_predicion,titulo)
-
 
 if __name__ == '__main__':
     modelo = load_model('modelo.keras')

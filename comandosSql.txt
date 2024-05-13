@@ -7,7 +7,7 @@ SELECT * FROM public."DatosIOT"
 ORDER BY device_id, date, signal_id ASC
 
 ------------------------------------------
-
+//Funcional
 SELECT * FROM public."NuevosDatosPlantasIA"
 	where date >= '2024-02-19 12:30:00' and date <= '2024-03-11 12:00:00'
 ORDER BY device_id, date, signal_id ASC
@@ -17,13 +17,40 @@ SELECT device_id, count( distinct signal_id) as numero_señales
 FROM public."NuevosDatosPlantasIA"
 GROUP BY device_id;
 
+//El qie hace falta implementar
 SELECT * FROM "NuevosDatosPlantasIA"
     	            where id >= {ultimo_id}
                 ORDER BY device_id, date, signal_id ASC
 
+//Dice los maximos de cada dispositivo
+SELECT device_id,
+       signal_id,
+       max_value,
+       (SELECT id
+        FROM public."NuevosDatosPlantasIA" AS sub
+        WHERE sub.device_id = main.device_id
+        AND sub.signal_id = main.signal_id
+        AND CAST(sub.value AS FLOAT) = main.max_value
+        LIMIT 1) AS id
+FROM (
+    SELECT device_id,
+           signal_id,
+           MAX(CAST(value AS FLOAT)) AS max_value
+    FROM public."NuevosDatosPlantasIA"
+    GROUP BY device_id, signal_id
+) AS main
+ORDER BY device_id, signal_id ASC;
+
+
 SELECT * FROM "NuevosDatosPlantasIA"
    where value::float >= 100 and signal_id % 16 = 1 and device_id != 5
 ORDER BY device_id, date, signal_id ASC
+
+//coger una tupla 
+SELECT * 
+FROM public."NuevosDatosPlantasIA"
+WHERE id BETWEEN 1610213 AND 1610213+15
+ORDER BY device_id, date, signal_id ASC;
 -------------------------------------------
 
 SELECT name  FROM public."Signals"
