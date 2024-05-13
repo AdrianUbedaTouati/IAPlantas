@@ -115,25 +115,6 @@ def dividir_datos_por_planta(datosIOT):
     for datos_planta in datos_por_planta_desorganizados:
         datos_por_planta.append(juntar_datos_planta(datos_planta))
 
-    dato_problematico = False
-
-    """
-    for datos_planta in datos_por_planta:
-        datos_planta[:] = [tuplas for tuplas in datos_planta if
-                           all(verificar_rango(int(dato[2] % 16), float(dato[3])) for dato in tuplas)]
-    
-    for datos_planta in datos_por_planta:
-        datos_planta_filtrados = []
-        for tuplas in datos_planta:
-            for dato in tuplas:
-                if not(verificar_rango(int(dato[2] % 16), float(dato[3]) )):
-                    dato_problematico = True
-                    break
-            if dato_problematico:
-                del tuplas
-                dato_problematico = False
-    """
-
     return datos_por_planta
 
 def verificar_rango(sensor,valor):
@@ -200,8 +181,6 @@ def juntar_datos_planta(datos_planta):
     for datos in datos_planta:
         # Hay veces que viene el mismo dato de 2 dispositivos distintos veces seguidas super raro, 4 dias depurando
         if datos[2] != anterior_sensor:
-            #if datos[0] == 1610213:
-            #    print("error")
             contador = contador + 1
             anterior_sensor = datos[2]
             lecturaCompleta.append(datos)
@@ -212,40 +191,6 @@ def juntar_datos_planta(datos_planta):
                 contador = 0
 
     return datos_organizados
-
-"""
-def juntar_datos_planta(datos_planta):
-    numero_de_datos_tupla = 16
-    principio_tupla = 1
-    final_tupla = 16
-
-    datos_planta_por_tuplas = []
-    planta = -1
-
-    lectura_tupla = []
-    for dato in datos_planta:
-        if planta != dato[1]:
-            if(principio_tupla > 1):
-                print("error")
-
-            planta = dato[1]
-            final_tupla = numero_de_datos_tupla * planta
-            principio_tupla = final_tupla - 15
-
-            lectura_tupla = []
-
-        if principio_tupla == final_tupla:
-            lectura_tupla.append(dato)
-            datos_planta_por_tuplas.append(lectura_tupla)
-            principio_tupla = final_tupla - 15
-            lectura_tupla = []
-        else:
-            lectura_tupla.append(dato)
-
-            principio_tupla = principio_tupla + 1
-
-    return datos_planta_por_tuplas
-"""
 
 def eliminar_datos_inecesarios(datos_IOT_ordenados_por_planta):
     datos_IOT_refinados_por_planta = []
@@ -268,9 +213,6 @@ def eliminar_datos_inecesarios(datos_IOT_ordenados_por_planta):
 
             tupla.append(id)
 
-            if tupla[16] == 1610213:
-                print(tupla)
-
             primero = True
 
             # Convertimos la lista de terceros valores en una tupla
@@ -279,11 +221,6 @@ def eliminar_datos_inecesarios(datos_IOT_ordenados_por_planta):
 
         array_convertido = [(float(a), float(b), float(c), float(d), float(e), float(f), float(g), float(h), float(i), int(j)) for a, b, c, d, e, f, g, h, i ,j in tuplasRefinadas]
         datos_IOT_refinados_por_planta.append(array_convertido)
-
-        #for tuplaa in array_convertido:
-        #    if tuplaa[9] == 1610213:
-        #        print(tuplaa[9])
-
 
     return datos_IOT_refinados_por_planta
 
@@ -411,9 +348,17 @@ def crear_graficas(datos_por_plantas,pred_por_plantas,indicePlanta,dias,fecha_da
     nombres = []
     diferencia_humedad_plantas = []
 
+    humedad_actual_por_planta = []
+    humedad_pred_por_planta = []
     for i in range(len(datos_por_plantas)):
+        humedad_actual_por_planta.append(datos_por_plantas[i][-1])
+        humedad_pred_por_planta.append(pred_por_plantas[i][-1])
         diferencia_humedad_plantas.append(abs(datos_por_plantas[i][-1] - pred_por_plantas[i][-1]))
         nombres.append(f"Planta {i+1}")
+
+    #Redondeamos los valores
+    humedad_actual_por_planta = np.round(humedad_actual_por_planta, 1)
+    humedad_pred_por_planta = np.round(humedad_pred_por_planta, 1)
 
     for i in range(len(datos_por_plantas)):
         if diferencia_humedad_plantas[i] >= alterta_diferencia_humedad_roja:
@@ -423,56 +368,69 @@ def crear_graficas(datos_por_plantas,pred_por_plantas,indicePlanta,dias,fecha_da
         else:
             nombres[i] = nombres[i] + "🟢"
 
-    fig = make_subplots(rows=num_lineas_pagina, cols=num_columnas_pagina, subplot_titles=nombres)
-
     color_verde = 'rgb(46, 204, 113)'  # Verde
     color_azul = 'rgb(52, 152, 219)'  # Azul
 
-    linea = 1
-    columna = 1
-    for i in range(len(datos_por_plantas)):
+    grafos_creados = 0
+    num_max_lineas_por_grafo = 2
 
-        if linea == num_lineas_pagina + 1:
-            columna = columna + 1
-            linea = 1
+    while (num_lineas_pagina > grafos_creados*2):
+        grafos_creados = grafos_creados + 1
+        primer_indice = num_columnas_pagina*num_max_lineas_por_grafo*(grafos_creados-1)
+        ultimo_indice = num_columnas_pagina*num_max_lineas_por_grafo*grafos_creados
 
-        fecha_datos = fecha_datos_plantas[i]
-        dato_por_planta = datos_por_plantas[i]
-        pred_por_planta = pred_por_plantas[i]
+        nombres_actuales = []
+        for i in range(primer_indice,ultimo_indice):
+            nombres_actuales.append(nombres[i])
 
-        fig.add_trace(go.Scatter(x=fecha_datos, y=dato_por_planta, mode='lines', name=indice_1, marker=dict(color = color_azul)), row = linea, col = columna)
-        fig.add_trace(go.Scatter(x=fecha_datos, y=pred_por_planta, mode='lines', name=indice_2, marker=dict(color = color_verde)), row = linea, col = columna)
+        fig = make_subplots(rows=num_max_lineas_por_grafo, cols=num_columnas_pagina, subplot_titles=nombres_actuales)
 
-        linea = linea + 1
+        linea = 1
+        columna = 1
+        for i in range(primer_indice,ultimo_indice):
 
-    # Personalizar el diseño del gráfico
-    fig.update_layout(
-        title=titulo,
-        xaxis=dict(title='Fecha de los datos'),
-        yaxis=dict(title='Humedad'),
-        showlegend=True,
-        hovermode='closest'
-    )
+            if linea == num_max_lineas_por_grafo + 1:
+                columna = columna + 1
+                linea = 1
+
+            fecha_datos = fecha_datos_plantas[i]
+            dato_por_planta = datos_por_plantas[i]
+            pred_por_planta = pred_por_plantas[i]
+
+            fig.add_trace(go.Scatter(x=fecha_datos, y=dato_por_planta, mode='lines', name=indice_1, marker=dict(color = color_azul)), row = linea, col = columna)
+            fig.add_trace(go.Scatter(x=fecha_datos, y=pred_por_planta, mode='lines', name=indice_2, marker=dict(color = color_verde)), row = linea, col = columna)
+
+            linea = linea + 1
+
+        # Personalizar el diseño del gráfico
+        fig.update_layout(
+            title=titulo,
+            xaxis=dict(title='Fecha de los datos'),
+            yaxis=dict(title='Humedad'),
+            showlegend=True,
+            hovermode='closest'
+        )
+
+        fig.write_html(f'graficas_{grafos_creados}.html')
+
 
     #Tabla resumen
     tabla = go.Figure(data=[go.Table(
-        header=dict(values=['Estado plantas']),  # Reemplaza estos valores con tus propios encabezados
-        cells=dict(values=[nombres])
-        # Reemplaza estos valores con tus propios datos
+        header=dict(values=['Estado plantas','Humedad necesaria','Humedad actual']),
+        cells=dict(values=[nombres,humedad_pred_por_planta, humedad_actual_por_planta])
     )])
 
-    tabla.write_html('tabla_plantas.html')
+    tabla.write_html('pagina_de_control.html')
 
-    fig.write_html('graficas.html')
-
-    insertar_tabla_en_pagina_graficas()
+    for i in range(grafos_creados):
+        insertar_elemento_final_pagina(f"graficas_{i + 1}.html")
 
     if not(pagina_abierta):
         pagina_abierta = True
         abrir_html_en_navegador()
 
 def abrir_html_en_navegador():
-    webbrowser.open_new_tab('graficas.html')  # Abre una nueva pestaña para evitar cerrar la anterior
+    webbrowser.open_new_tab('pagina_de_control.html')  # Abre una nueva pestaña para evitar cerrar la anterior
     # Esto es JavaScript para recargar la página automáticamente
     script = f"""
     <script>
@@ -481,16 +439,16 @@ def abrir_html_en_navegador():
         }}, {tiempo_entre_busquedas * 60 * 1000});
     </script>
     """
-    with open('graficas.html', 'a') as f:
+    with open('pagina_de_control.html', 'a') as f:
         f.write(script)
 
-def insertar_tabla_en_pagina_graficas():
+def insertar_elemento_final_pagina(nombre_html):
     # Leer el contenido de tabla_plantas.html con codificación utf-8
-    with open('tabla_plantas.html', 'r', encoding='utf-8') as tabla_file:
+    with open(nombre_html, 'r', encoding='utf-8') as tabla_file:
         tabla_content = tabla_file.read()
 
     # Leer el contenido de graficas.html
-    with open('graficas.html', 'r', encoding='utf-8') as graficas_file:
+    with open('pagina_de_control.html', 'r', encoding='utf-8') as graficas_file:
         graficas_content = graficas_file.read()
 
     # Encontrar el índice donde insertar la tabla
@@ -500,7 +458,7 @@ def insertar_tabla_en_pagina_graficas():
     nuevo_contenido = graficas_content[:insert_index] + tabla_content + graficas_content[insert_index:]
 
     # Escribir el nuevo contenido en graficas.html
-    with open('graficas.html', 'w', encoding='utf-8') as graficas_file:
+    with open('pagina_de_control.html', 'w', encoding='utf-8') as graficas_file:
         graficas_file.write(nuevo_contenido)
 
 def recoger_datos_nuevos():
@@ -515,16 +473,9 @@ def recoger_datos_nuevos():
 SELECT * FROM "NuevosDatosPlantasIA"
     where id >= {ultimo_id}
 ORDER BY device_id, date, signal_id ASC
-
         '''
         """
-SELECT * FROM public."NuevosDatosPlantasIA"
-	where date >= '2024-02-19 12:30:00' and date <= '2024-03-11 12:00:00'
-ORDER BY device_id, date, signal_id ASC
 
-SELECT * FROM "NuevosDatosPlantasIA"
-    where id >= {ultimo_id}
-ORDER BY device_id, date, signal_id ASC
 
 SELECT * FROM public."NuevosDatosPlantasIA"
     WHERE device_id > 0 and device_id < 6
