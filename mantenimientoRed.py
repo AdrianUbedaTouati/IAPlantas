@@ -368,6 +368,15 @@ def crear_graficas(datos_por_plantas,pred_por_plantas,indicePlanta,dias,fecha_da
         else:
             nombres[i] = nombres[i] + "🟢"
 
+
+    nombres_grafica = []
+    medio = int(len(nombres)/2)
+    for i in range(medio):
+        nombres_grafica.append(nombres[2 * i])
+
+    for i in range(medio):
+        nombres_grafica.append(nombres[2 * i + 1])
+
     fig = make_subplots(rows=num_lineas_pagina, cols=num_columnas_pagina, subplot_titles=nombres)
 
     color_verde = 'rgb(46, 204, 113)'  # Verde
