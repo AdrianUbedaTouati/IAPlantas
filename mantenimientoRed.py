@@ -370,34 +370,29 @@ def crear_graficas(datos_por_plantas,pred_por_plantas,indicePlanta,dias,fecha_da
 
 
     nombres_grafica = []
-    medio = int(len(nombres)/2)
-    for i in range(medio):
-        nombres_grafica.append(nombres[2 * i])
 
-    for i in range(medio):
-        nombres_grafica.append(nombres[2 * i + 1])
+    for i in range(len(nombres)):
+        nombres_grafica.append(nombres[i])
+
+
 
     fig = make_subplots(rows=num_lineas_pagina, cols=num_columnas_pagina, subplot_titles=nombres)
 
     color_verde = 'rgb(46, 204, 113)'  # Verde
     color_azul = 'rgb(52, 152, 219)'  # Azul
 
-    linea = 1
-    columna = 1
-    for i in range(len(datos_por_plantas)):
+    c=0
+    for i in range(int(len(datos_por_plantas)/2)):
+        for j in range(2):
+            fecha_datos = fecha_datos_plantas[c]
+            dato_por_planta = datos_por_plantas[c]
+            pred_por_planta = pred_por_plantas[c]
 
-        if linea == num_lineas_pagina + 1:
-            columna = columna + 1
-            linea = 1
+            fig.add_trace(go.Scatter(x=fecha_datos, y=dato_por_planta, mode='lines', name=indice_1, marker=dict(color = color_azul)), row = i+1, col = j+1)
+            fig.add_trace(go.Scatter(x=fecha_datos, y=pred_por_planta, mode='lines', name=indice_2, marker=dict(color=color_verde)), row=i + 1, col=j + 1)
+            c= c+1
 
-        fecha_datos = fecha_datos_plantas[i]
-        dato_por_planta = datos_por_plantas[i]
-        pred_por_planta = pred_por_plantas[i]
 
-        fig.add_trace(go.Scatter(x=fecha_datos, y=dato_por_planta, mode='lines', name=indice_1, marker=dict(color = color_azul)), row = linea, col = columna)
-        fig.add_trace(go.Scatter(x=fecha_datos, y=pred_por_planta, mode='lines', name=indice_2, marker=dict(color = color_verde)), row = linea, col = columna)
-
-        linea = linea + 1
 
     # Personalizar el diseño del gráfico
     fig.update_layout(
