@@ -49,7 +49,7 @@ ORDER BY device_id, date, signal_id ASC
 //coger una tupla 
 SELECT * 
 FROM public."NuevosDatosPlantasIA"
-WHERE id BETWEEN 1610213 AND 1610213+15
+WHERE id BETWEEN 1610213 AND 1610213+400
 ORDER BY device_id, date, signal_id ASC;
 -------------------------------------------
 

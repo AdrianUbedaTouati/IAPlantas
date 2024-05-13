@@ -115,13 +115,81 @@ def dividir_datos_por_planta(datosIOT):
     for datos_planta in datos_por_planta_desorganizados:
         datos_por_planta.append(juntar_datos_planta(datos_planta))
 
-    for datos_planta_wad in datos_por_planta:
-        for tuplas in datos_planta_wad:
-            for tupla in tuplas:
-                if tupla[0] == 1610213:
-                    print("error") #falla
+    dato_problematico = False
+
+
+    for datos_planta in datos_por_planta:
+        datos_planta[:] = [tuplas for tuplas in datos_planta if
+                           all(verificar_rango(int(dato[2] % 16), float(dato[3])) for dato in tuplas)]
+    """
+    for datos_planta in datos_por_planta:
+        datos_planta_filtrados = []
+        for tuplas in datos_planta:
+            for dato in tuplas:
+                if not(verificar_rango(int(dato[2] % 16), float(dato[3]) )):
+                    dato_problematico = True
+                    break
+            if dato_problematico:
+                del tuplas
+                dato_problematico = False
+    """
 
     return datos_por_planta
+
+def verificar_rango(sensor,valor):
+    resultado = False
+
+    rango_humedad = [0,100]
+    rango_temperatura = [-20, 80]
+    rango_conductividad = [0, 8000]
+    rango_ph = [0, 14]
+
+    rango_nitrogeno = [0, 1200]
+    rango_fosforo = [0, 2500]
+    rango_potasio = [0, 2500]
+    rango_salinidad = [0, 2500]
+    rango_tds = [0, 2500]
+
+    if sensor == 1:
+        if valor >= rango_humedad[0] and valor <= rango_humedad[1]:
+            resultado = True
+
+    elif sensor == 2:
+        if valor >= rango_temperatura[0] and valor <= rango_temperatura[1]:
+            resultado = True
+
+    elif sensor == 3:
+        if valor >= rango_conductividad[0] and valor <= rango_conductividad[1]:
+            resultado = True
+
+    elif sensor == 4:
+        if valor >= rango_ph[0] and valor <= rango_ph[1]:
+            resultado = True
+
+    elif sensor == 5:
+        if valor >= rango_nitrogeno[0] and valor <= rango_nitrogeno[1]:
+            resultado = True
+
+    elif sensor == 6:
+        if valor >= rango_fosforo[0] and valor <= rango_fosforo[1]:
+            resultado = True
+
+    elif sensor == 7:
+        if valor >= rango_potasio[0] and valor <= rango_potasio[1]:
+            resultado = True
+
+    elif sensor == 8:
+        if valor >= rango_salinidad[0] and valor <= rango_salinidad[1]:
+            resultado = True
+
+    elif sensor == 9:
+        if valor >= rango_tds[0] and valor <= rango_tds[1]:
+            resultado = True
+
+    else:
+        resultado = True
+
+    return resultado
 
 
 def juntar_datos_planta(datos_planta):
@@ -130,6 +198,7 @@ def juntar_datos_planta(datos_planta):
     anterior_sensor = -1;
     lecturaCompleta = []
     for datos in datos_planta:
+        # Hay veces que viene el mismo dato de 2 dispositivos distintos veces seguidas super raro, 4 dias depurando
         if datos[2] != anterior_sensor:
             #if datos[0] == 1610213:
             #    print("error")
@@ -218,9 +287,6 @@ def eliminar_datos_inecesarios(datos_IOT_ordenados_por_planta):
 
     return datos_IOT_refinados_por_planta
 
-def eliminar_datos_malos(datos_planta):
-    max_X = [100, 22.1, 1581.0, 9.0, 291.0, 719.0, 717.0, 869.0, 790.0]
-
 def preparar_datos_normalizados_red(X):
     # Inicializamos un nuevo array para almacenar todas las tuplas
     datos_por_planta_normalizados = []
@@ -236,7 +302,7 @@ def preparar_datos_normalizados_red(X):
         for tupla in planta:
             contador = 0
             for elemento in tupla:
-                #id
+                # no tener en cuenta el id
                 if contador == 9:
                     break
                 if max_X_planta[contador] < elemento:
@@ -266,6 +332,7 @@ def preparar_datos_normalizados_red(X):
             contador = 0
             tupla_normalizada = []
             for elemento in tupla:
+                # no tener en cuenta el id
                 if contador == 9:
                     break
                 valor_normalizado = elemento / max_X[contador]
@@ -273,6 +340,7 @@ def preparar_datos_normalizados_red(X):
                 contador += 1
 
             valores_normalizados_planta.append(tuple(tupla_normalizada))
+
         datos_por_planta_normalizados.append(np.array(valores_normalizados_planta))
 
 
