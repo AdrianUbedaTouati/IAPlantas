@@ -117,11 +117,11 @@ def dividir_datos_por_planta(datosIOT):
 
     dato_problematico = False
 
-
+    """
     for datos_planta in datos_por_planta:
         datos_planta[:] = [tuplas for tuplas in datos_planta if
                            all(verificar_rango(int(dato[2] % 16), float(dato[3])) for dato in tuplas)]
-    """
+    
     for datos_planta in datos_por_planta:
         datos_planta_filtrados = []
         for tuplas in datos_planta:
@@ -141,14 +141,14 @@ def verificar_rango(sensor,valor):
 
     rango_humedad = [0,100]
     rango_temperatura = [-20, 80]
-    rango_conductividad = [0, 8000]
+    rango_conductividad = [0, 3500]
     rango_ph = [0, 14]
 
-    rango_nitrogeno = [0, 1200]
-    rango_fosforo = [0, 2500]
-    rango_potasio = [0, 2500]
-    rango_salinidad = [0, 2500]
-    rango_tds = [0, 2500]
+    rango_nitrogeno = [0, 800]
+    rango_fosforo = [0, 1800]
+    rango_potasio = [0, 1800]
+    rango_salinidad = [0, 2100]
+    rango_tds = [0, 1900]
 
     if sensor == 1:
         if valor >= rango_humedad[0] and valor <= rango_humedad[1]:
@@ -295,6 +295,10 @@ def preparar_datos_normalizados_red(X):
 
     max_X_por_planta = []
 
+    max_X_anterior = [-1,-1,-1,-1,-1,-1,-1,-1,-1]
+    max_X_por_planta_anterior = [-1,-1,-1,-1,-1,-1,-1,-1,-1]
+    dato_problematico = False
+
     #Buscar los valores maximos
     for planta in X:
         max_X_planta = [-1,-1,-1,-1,-1,-1,-1,-1,-1] #ultimo es el id luego lo borramos
@@ -303,17 +307,27 @@ def preparar_datos_normalizados_red(X):
             contador = 0
             for elemento in tupla:
                 # no tener en cuenta el id
+                if not(verificar_rango(contador + 1,elemento)):
+                    dato_problematico = True
+                    break
                 if contador == 9:
                     break
+
                 if max_X_planta[contador] < elemento:
                     max_X_planta[contador] = elemento
 
                 if max_X[contador] < elemento:
-                    if 20 < elemento and contador == 3:
-                        print(tupla)
                     max_X[contador] = elemento
 
                 contador += 1
+
+            if dato_problematico:
+                dato_problematico = False
+                max_X = max_X_anterior
+                max_X_planta = max_X_por_planta_anterior
+            else:
+                max_X_anterior = max_X
+                max_X_por_planta_anterior = max_X_planta
 
         max_X_por_planta.append(max_X_planta)
 
@@ -498,16 +512,17 @@ def recoger_datos_nuevos():
         cursor = conexion.cursor()
 
         comando = f'''
-SELECT * FROM public."NuevosDatosPlantasIA"
-    WHERE device_id > 0 and device_id < 6
+SELECT * FROM "NuevosDatosPlantasIA"
+    where id >= {ultimo_id}
 ORDER BY device_id, date, signal_id ASC
+
         '''
         """
 SELECT * FROM public."NuevosDatosPlantasIA"
 	where date >= '2024-02-19 12:30:00' and date <= '2024-03-11 12:00:00'
 ORDER BY device_id, date, signal_id ASC
 
-        SELECT * FROM "NuevosDatosPlantasIA"
+SELECT * FROM "NuevosDatosPlantasIA"
     where id >= {ultimo_id}
 ORDER BY device_id, date, signal_id ASC
 
