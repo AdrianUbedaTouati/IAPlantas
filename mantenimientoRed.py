@@ -100,9 +100,6 @@ def dividir_datos_por_planta(datosIOT):
             datos_planta = []
             planta = datoIOT[1]
 
-        if datoIOT[0] == 1610213:
-            print("error") #pasado
-
         datos_planta.append(datoIOT)
 
 
@@ -351,14 +348,15 @@ def crear_graficas(datos_por_plantas,pred_por_plantas,indicePlanta,dias,fecha_da
     humedad_actual_por_planta = []
     humedad_pred_por_planta = []
     for i in range(len(datos_por_plantas)):
-        humedad_actual_por_planta.append(datos_por_plantas[i][-1])
-        humedad_pred_por_planta.append(pred_por_plantas[i][-1])
-        diferencia_humedad_plantas.append(abs(datos_por_plantas[i][-1] - pred_por_plantas[i][-1]))
+        humedad_actual_por_planta.append(float(datos_por_plantas[i][-1]))
+        humedad_pred_por_planta.append(float(pred_por_plantas[i][-1]))
+        diferencia_humedad_plantas.append(abs(float(datos_por_plantas[i][-1]) - float(pred_por_plantas[i][-1])))
         nombres.append(f"Planta {i + 1}")
 
     # Redondeamos los valores
     humedad_actual_por_planta = np.round(humedad_actual_por_planta, 1)
     humedad_pred_por_planta = np.round(humedad_pred_por_planta, 1)
+    diferencia_humedad_plantas = np.round(diferencia_humedad_plantas, 1)
 
     for i in range(len(datos_por_plantas)):
         if diferencia_humedad_plantas[i] >= alterta_diferencia_humedad_roja or humedad_actual_por_planta[i] < 25:
@@ -368,13 +366,10 @@ def crear_graficas(datos_por_plantas,pred_por_plantas,indicePlanta,dias,fecha_da
         else:
             nombres[i] = nombres[i] + "🟢"
 
-
     nombres_grafica = []
 
     for i in range(len(nombres)):
         nombres_grafica.append(nombres[i])
-
-
 
     fig = make_subplots(rows=num_lineas_pagina, cols=num_columnas_pagina, subplot_titles=nombres)
 
@@ -392,8 +387,6 @@ def crear_graficas(datos_por_plantas,pred_por_plantas,indicePlanta,dias,fecha_da
             fig.add_trace(go.Scatter(x=fecha_datos, y=pred_por_planta, mode='lines', name=indice_2, marker=dict(color=color_verde)), row=i + 1, col=j + 1)
             c= c+1
 
-
-
     # Personalizar el diseño del gráfico
     fig.update_layout(
         title=titulo,
@@ -403,11 +396,11 @@ def crear_graficas(datos_por_plantas,pred_por_plantas,indicePlanta,dias,fecha_da
         hovermode='closest'
     )
 
-    fig.update_layout(height=4000)
+    fig.update_layout(height=3000)
 
     tabla = go.Figure(data=[go.Table(
-        header=dict(values=['Estado plantas', 'Humedad necesaria', 'Humedad actual']),
-        cells=dict(values=[nombres, humedad_pred_por_planta, humedad_actual_por_planta])
+        header=dict(values=['Estado plantas', 'Humedad necesaria', 'Humedad actual', 'Diferencia']),
+        cells=dict(values=[nombres, humedad_pred_por_planta, humedad_actual_por_planta, diferencia_humedad_plantas])
     )])
 
     tabla.update_layout(height=600)
@@ -422,95 +415,6 @@ def crear_graficas(datos_por_plantas,pred_por_plantas,indicePlanta,dias,fecha_da
         pagina_abierta = True
         abrir_html_en_navegador()
 
-"""
-def crear_graficas(datos_por_plantas,pred_por_plantas,indicePlanta,dias,fecha_datos_plantas,indice_1,indice_2,titulo):
-    global pagina_abierta
-
-    nombres = []
-    diferencia_humedad_plantas = []
-
-    humedad_actual_por_planta = []
-    humedad_pred_por_planta = []
-    for i in range(len(datos_por_plantas)):
-        humedad_actual_por_planta.append(datos_por_plantas[i][-1])
-        humedad_pred_por_planta.append(pred_por_plantas[i][-1])
-        diferencia_humedad_plantas.append(abs(datos_por_plantas[i][-1] - pred_por_plantas[i][-1]))
-        nombres.append(f"Planta {i+1}")
-
-    #Redondeamos los valores
-    humedad_actual_por_planta = np.round(humedad_actual_por_planta, 1)
-    humedad_pred_por_planta = np.round(humedad_pred_por_planta, 1)
-
-    for i in range(len(datos_por_plantas)):
-        if diferencia_humedad_plantas[i] >= alterta_diferencia_humedad_roja or humedad_actual_por_planta[i] < 25:
-            nombres[i] = nombres[i] + "🔴"
-        elif diferencia_humedad_plantas[i] >= alterta_diferencia_humedad_amarilla:
-            nombres[i] = nombres[i] + "🟡"
-        else:
-            nombres[i] = nombres[i] + "🟢"
-
-    color_verde = 'rgb(46, 204, 113)'  # Verde
-    color_azul = 'rgb(52, 152, 219)'  # Azul
-
-    grafos_creados = 0
-    num_max_lineas_por_grafo = 2
-
-        grafos_creados = grafos_creados + 1
-        primer_indice = num_columnas_pagina*num_max_lineas_por_grafo*(grafos_creados-1)
-        ultimo_indice = num_columnas_pagina*num_max_lineas_por_grafo*grafos_creados
-
-        nombres_actuales = []
-        for i in range(primer_indice,ultimo_indice):
-            nombres_actuales.append(nombres[i])
-
-        fig = make_subplots(rows=num_max_lineas_por_grafo, cols=num_columnas_pagina, subplot_titles=nombres_actuales)
-
-        linea = 1
-        columna = 1
-        for i in range(primer_indice,ultimo_indice):
-
-            if linea == num_max_lineas_por_grafo + 1:
-                columna = columna + 1
-                linea = 1
-
-            fecha_datos = fecha_datos_plantas[i]
-            dato_por_planta = datos_por_plantas[i]
-            pred_por_planta = pred_por_plantas[i]
-
-            fig.add_trace(go.Scatter(x=fecha_datos, y=dato_por_planta, mode='lines', name=indice_1, marker=dict(color = color_azul)), row = linea, col = columna)
-            fig.add_trace(go.Scatter(x=fecha_datos, y=pred_por_planta, mode='lines', name=indice_2, marker=dict(color = color_verde)), row = linea, col = columna)
-
-            linea = linea + 1
-
-        # Personalizar el diseño del gráfico
-        fig.update_layout(
-            title=titulo,
-            xaxis=dict(title='Fecha de los datos'),
-            yaxis=dict(title='Humedad'),
-            showlegend=True,
-            hovermode='closest'
-        )
-
-        fig.write_html(f'graficas_{grafos_creados}.html')
-
-
-    #Tabla resumen
-    tabla = go.Figure(data=[go.Table(
-        header=dict(values=['Estado plantas','Humedad necesaria','Humedad actual']),
-        cells=dict(values=[nombres,humedad_pred_por_planta, humedad_actual_por_planta])
-    )])
-
-    tabla.update_layout(height=600)
-
-    tabla.write_html('pagina_de_control.html')
-
-    for i in range(grafos_creados):
-        insertar_elemento_final_pagina(f"graficas_{i + 1}.html")
-
-    if not(pagina_abierta):
-        pagina_abierta = True
-        abrir_html_en_navegador()
-    """
 def abrir_html_en_navegador():
     webbrowser.open_new_tab('pagina_de_control.html')  # Abre una nueva pestaña para evitar cerrar la anterior
     # Esto es JavaScript para recargar la página automáticamente
