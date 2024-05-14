@@ -173,7 +173,7 @@ def verificar_rango(sensor,valor):
 def juntar_datos_planta(datos_planta):
     datos_organizados = []
     contador = 0
-    anterior_sensor = -1;
+    anterior_sensor = -1
     lecturaCompleta = []
     for datos in datos_planta:
         # Hay veces que viene el mismo dato de 2 dispositivos distintos veces seguidas super raro, 4 dias depurando
@@ -265,11 +265,12 @@ def preparar_datos_normalizados_red(X):
 
         max_X_por_planta.append(max_X_planta)
 
-    print("General")
-    print(max_X)
-    print("Por planta")
-    for max_planta in max_X_por_planta:
-        print(max_planta)
+    #print("General")
+    #print(max_X)
+    #print("Por planta")
+    #for max_planta in max_X_por_planta:
+    #    print(max_planta)
+
     # Normalizar
 
     # Iteramos sobre cada array interno en X
@@ -384,7 +385,7 @@ def crear_graficas(datos_por_plantas,pred_por_plantas,indicePlanta,dias,fecha_da
             pred_por_planta = pred_por_plantas[c]
 
             fig.add_trace(go.Scatter(x=fecha_datos, y=dato_por_planta, mode='lines', name=indice_1, marker=dict(color = color_azul)), row = i+1, col = j+1)
-            fig.add_trace(go.Scatter(x=fecha_datos, y=pred_por_planta, mode='lines', name=indice_2, marker=dict(color=color_verde)), row=i + 1, col=j + 1)
+            fig.add_trace(go.Scatter(x=fecha_datos, y=pred_por_planta, mode='lines', name=indice_2, marker=dict(color = color_verde)), row=i + 1, col=j + 1)
             c= c+1
 
     # Personalizar el diseño del gráfico
@@ -396,7 +397,7 @@ def crear_graficas(datos_por_plantas,pred_por_plantas,indicePlanta,dias,fecha_da
         hovermode='closest'
     )
 
-    fig.update_layout(height=3000)
+    fig.update_layout(height=3500)
 
     tabla = go.Figure(data=[go.Table(
         header=dict(values=['Estado plantas', 'Humedad necesaria', 'Humedad actual', 'Diferencia']),
@@ -449,6 +450,8 @@ def insertar_elemento_final_pagina(nombre_html):
 
 def recoger_datos_nuevos():
     global datos_nuevos
+    global ultimo_id
+
     print("Recogiendo datos...")
 
     try:
@@ -459,14 +462,7 @@ def recoger_datos_nuevos():
 SELECT * FROM "NuevosDatosPlantasIA"
     where id >= {ultimo_id}
 ORDER BY device_id, date, signal_id ASC
-        '''
-        """
-
-
-SELECT * FROM public."NuevosDatosPlantasIA"
-    WHERE device_id > 0 and device_id < 6
-ORDER BY device_id, date, signal_id ASC
-        """
+'''
 
         cursor.execute(comando)
         datos_nuevos = cursor.fetchall()
@@ -474,6 +470,9 @@ ORDER BY device_id, date, signal_id ASC
         print("Error en la conexion: ", e)
 
     print("Datos recogidos correctamente")
+
+
+    ultimo_id = datos_nuevos[-1][0]
 
     return datos_nuevos
     #Conexion con SQL
