@@ -1,4 +1,3 @@
-
 import sys
 import os
 import threading
@@ -173,7 +172,7 @@ def verificar_rango(sensor,valor):
 def juntar_datos_planta(datos_planta):
     datos_organizados = []
     contador = 0
-    anterior_sensor = -1
+    anterior_sensor = -1;
     lecturaCompleta = []
     for datos in datos_planta:
         # Hay veces que viene el mismo dato de 2 dispositivos distintos veces seguidas super raro, 4 dias depurando
@@ -270,7 +269,6 @@ def preparar_datos_normalizados_red(X):
     #print("Por planta")
     #for max_planta in max_X_por_planta:
     #    print(max_planta)
-
     # Normalizar
 
     # Iteramos sobre cada array interno en X
@@ -450,8 +448,6 @@ def insertar_elemento_final_pagina(nombre_html):
 
 def recoger_datos_nuevos():
     global datos_nuevos
-    global ultimo_id
-
     print("Recogiendo datos...")
 
     try:
@@ -462,7 +458,14 @@ def recoger_datos_nuevos():
 SELECT * FROM "NuevosDatosPlantasIA"
     where id >= {ultimo_id}
 ORDER BY device_id, date, signal_id ASC
-'''
+        '''
+        """
+
+
+SELECT * FROM public."NuevosDatosPlantasIA"
+    WHERE device_id > 0 and device_id < 6
+ORDER BY device_id, date, signal_id ASC
+        """
 
         cursor.execute(comando)
         datos_nuevos = cursor.fetchall()
@@ -470,9 +473,6 @@ ORDER BY device_id, date, signal_id ASC
         print("Error en la conexion: ", e)
 
     print("Datos recogidos correctamente")
-
-
-    ultimo_id = datos_nuevos[-1][0]
 
     return datos_nuevos
     #Conexion con SQL
