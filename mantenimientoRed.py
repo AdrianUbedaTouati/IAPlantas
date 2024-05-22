@@ -81,12 +81,8 @@ num_lineas_pagina = 0 #automatico
 
 @register_keras_serializable()
 def custom_loss(y_true, y_pred):
-    # Clip predictions to avoid log(0) or log(1) which are undefined.
-    y_pred = tf.clip_by_value(y_pred, 1e-7, 1 - 1e-7)
-    # Calculate binary cross-entropy loss
-    loss = -tf.reduce_mean(y_true * tf.math.log(y_pred) + (1 - y_true) * tf.math.log(1 - y_pred))
+    loss = tf.reduce_mean(tf.square(y_true - y_pred))
     return loss
-
 def dividir_datos_por_planta(datosIOT):
     datos_por_planta = []
 
@@ -108,7 +104,7 @@ def dividir_datos_por_planta(datosIOT):
     del datos_por_planta_desorganizados[4]
 
     for datos_planta in datos_por_planta_desorganizados:
-        datos_por_planta.append(juntar_datos_planta(datos_planta))
+        datos_por_planta.append(juntar_datos_planta_en_tuplas(datos_planta))
 
     return datos_por_planta
 
@@ -167,7 +163,7 @@ def verificar_rango(sensor,valor):
 
     return resultado
 
-def juntar_datos_planta(datos_planta):
+def juntar_datos_planta_en_tuplas(datos_planta):
     datos_organizados = []
     contador = 0
     anterior_sensor = -1;

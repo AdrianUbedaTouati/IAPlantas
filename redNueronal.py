@@ -52,9 +52,10 @@ from psycopg2 import Error
 
 #Entrenamiento
 batch_size = 64
-epochs = 100
+epochs = 200
 crossValidationSplit = 10
 busquedaMejorTuplaDias = 3
+validation_split = 0.05
 
 planta_imagen = 1
 img_rows, img_cols = 64, 64
@@ -497,7 +498,7 @@ def preparar_datos_normalizados_red(X,y):
     # Inicializamos un nuevo array para almacenar todas las tuplas
     datos_por_planta_normalizados = []
 
-    max_X = [100,40,3492.0, -1,690.0,1641.0,1646.0,1920.0,1746.0] #ultimo es el id luego lo borramos
+    max_X = [100,40,3492.0, -1,690.0,1641.0,1646.0,1920.0,1746.0]
 
     max_X_por_planta = []
 
@@ -643,10 +644,7 @@ def obtenerDatosIOT():
 
 @register_keras_serializable()
 def custom_loss(y_true, y_pred):
-    # Clip predictions to avoid log(0) or log(1) which are undefined.
-    y_pred = tf.clip_by_value(y_pred, 1e-7, 1 - 1e-7)
-    # Calculate binary cross-entropy loss
-    loss = -tf.reduce_mean(y_true * tf.math.log(y_pred) + (1 - y_true) * tf.math.log(1 - y_pred))
+    loss = tf.reduce_mean(tf.square(y_true - y_pred))
     return loss
 
 def GuardarValoresROCfichero():
@@ -707,7 +705,7 @@ def mainSinImagenes():
 
         model.compile(loss=custom_loss, optimizer='adam', metrics=['mae', 'mse'])
 
-        history = model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs, validation_split=0.1, verbose=2)
+        history = model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs, validation_split=validation_split, verbose=2)
         #history = model.fit(train_datagen, steps_per_epoch=len(X_train) // batch_size, epochs=epochs,
         #                    validation_data=(X_test, y_test), verbose=2)
 
