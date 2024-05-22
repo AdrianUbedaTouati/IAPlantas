@@ -53,7 +53,7 @@ from psycopg2 import Error
 #Entrenamiento
 batch_size = 64
 epochs = 100
-crossValidationSplit = 2
+crossValidationSplit = 10
 busquedaMejorTuplaDias = 3
 
 planta_imagen = 1
@@ -65,7 +65,8 @@ input_shape_IOT = (9,)
 nombreModelo = "modelo1_32x32"
 
 #Variables Globales
-resultadosROC = []
+resultadosLossModelos = []
+modelos = []
 datosIOT = []
 datosIOTEntrenamientoImagenes = []
 
@@ -578,23 +579,6 @@ def preparar_datos_normalizados_red(X,y):
 
     return datos_por_planta_normalizados, humedad_normalizada
 
-def cnn_model_IOT(input_shape):
-    inputs = layers.Input(shape=input_shape)
-
-    x = layers.Dense(256, activation='relu')(inputs)
-
-    x = layers.Dense(128, activation='relu')(x)
-
-    x = layers.Dense(64,  activation='relu')(x)
-
-    x = layers.Dense(32, activation='relu')(x)
-
-    outputs = layers.Dense(1,activation='sigmoid')(x)
-
-    model = models.Model(inputs=inputs, outputs=outputs)
-
-    return model
-
 def cnn_model_imagenes_IOT(input_shape_image, input_shape_tuple):
 
     # Capa de entrada para la imagen
@@ -620,6 +604,23 @@ def cnn_model_imagenes_IOT(input_shape_image, input_shape_tuple):
     model = models.Model(inputs=[input_image, input_tuple], outputs=output)
     return model
 
+def cnn_model_IOT(input_shape):
+    inputs = layers.Input(shape=input_shape)
+
+    x = layers.Dense(256, activation='relu')(inputs)
+
+    x = layers.Dense(128, activation='relu')(x)
+
+    x = layers.Dense(64,  activation='relu')(x)
+
+    x = layers.Dense(32, activation='relu')(x)
+
+    outputs = layers.Dense(1,activation='sigmoid')(x)
+
+    model = models.Model(inputs=inputs, outputs=outputs)
+
+    return model
+
 #########
 # Comun #
 #########
@@ -631,7 +632,7 @@ def obtenerDatosIOT():
         cursor = conexion.cursor()
         print("Extrayendo Datos:")
         comando = '''SELECT * FROM public."DatosIOT"
-	            where date >= '2024-02-19 12:30:00' and date <= '2024-03-11 12:00:00'
+	            where date <= '2024-03-5 24:00:00'
             ORDER BY device_id, date, signal_id ASC '''
         cursor.execute(comando)
         datosIOT = cursor.fetchall()
@@ -662,6 +663,7 @@ def GuardarValoresROCfichero():
 # Sin Imagenes #
 ################
 def mainSinImagenes():
+    global resultadosROC
     print("Recogiendo datos:")
     datosIOT = obtenerDatosIOT()
 
@@ -741,7 +743,9 @@ def mainSinImagenes():
         #Visualizar datos del split
         loss = model.evaluate(X_test, y_test, batch_size=batch_size)
         y_pred = model.predict(X_test)
-        #resultadosROC.append(roc_auc_score(y_test, y_pred[:, 1],multi_class='ovr'))
+
+        resultadosLossModelos.append(loss[1])
+
         print(f"Split numero {splitEntrenamiento}:")
 
         print('Predictions')
@@ -765,6 +769,19 @@ def mainSinImagenes():
             print("Valor predicho:", y_sample_pred[i])
             print("-------------------------")
 
+        modelos.append(model)
+
+    loss_mas_bajo = 1
+    contador = 0
+    for loss in resultadosLossModelos:
+        if loss < loss_mas_bajo:
+            loss_mas_bajo = loss
+            model = modelos[contador]
+
+        contador = contador + 1
+
+
+    print(loss_mas_bajo)
     model.save('greentwin.keras')
 
 ################
