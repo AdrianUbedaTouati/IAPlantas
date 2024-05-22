@@ -52,29 +52,26 @@ from psycopg2 import Error
 
 #Entrenamiento
 batch_size = 64
-nb_classes = 3
 epochs = 100
 crossValidationSplit = 2
 busquedaMejorTuplaDias = 3
 
 planta_imagen = 1
-# numero de tuplas = 5(intervalo entre cada dato)*12( tranformacion a una hora)*24(a un dia)*5(a 5 dias)
-
-# Scaling input image to theses dimensions
 img_rows, img_cols = 64, 64
+
+# Datos en entrada en la red
+input_shape_IOT = (9,)
 
 nombreModelo = "modelo1_32x32"
 
+#Variables Globales
 resultadosROC = []
-
 datosIOT = []
-
 datosIOTEntrenamientoImagenes = []
-
 datosOrdenadosPorPlantas = [[], [], [], [], []]  # Lista para cada planta y calidad del aire
 humedadIdealOrdenadaPorPlantas = [[], [], [], [], []] # Humedad ideal por cada tupla
 
-input_shape_IOT = (9,) # Datos en entrada en la red
+
 
 def load_data():
     X = []
@@ -83,7 +80,7 @@ def load_data():
     print("-Procensado imagenes")
 
     for filename in glob.glob(f'../NDVIfotos/*.png'):
-        # Dejamos de NDVI_2024-02-19_12_32_44 : 2024-02-19_12_32
+        # Cambiamos nombre de NDVI_2024-02-19_12_32_44 a 2024-02-19_12_32
         fechas.append(filename[18:-4])
 
         im = preprocesar_imagen(filename)
@@ -206,16 +203,8 @@ def tupla_con_fecha_mas_cercana(elemento, plantasOrdenadas):
 def filtrarDatosIOTparaImagenes(fechasImagenes,datosIOT):
     global datosIOTEntrenamientoImagenes
     for i in range(len(fechasImagenes)):
-        #print("fecha :",fechasImagenes[i])
         datosIOTEntrenamientoImagenes.append(tupla_con_fecha_mas_cercana(fechasImagenes[i], datosIOT[planta_imagen - 1]))
     return datosIOTEntrenamientoImagenes
-
-#Buscar en la ultima semana de datos
-#Cada tupla se registra cada 5 m
-# numero de tuplas = 5*12*24*7 = 10 080
-
-#def mejorTupla(fechaActual):
-    #Sistema de recompensa
 
 def dividrDatosIOTporPlanta(datosIOT):
     global datosOrdenadosPorPlantas
@@ -234,22 +223,6 @@ def dividrDatosIOTporPlanta(datosIOT):
 
     return datosOrdenadosPorPlantas
 
-def dividrDatosIOTporPlantaImagenes(datosIOT):
-    global datosOrdenadosPorPlantas
-
-    contador = 0
-
-    lecturaCompleta = []
-    for datoIOT in datosIOT:
-        contador = contador + 1
-        planta = datoIOT[1]
-        lecturaCompleta.append(datoIOT)
-        if (contador == 16 and planta != 5) or (contador == 11 and planta == 5):
-            datosOrdenadosPorPlantas[planta - 1].append(lecturaCompleta)
-            lecturaCompleta = []
-            contador = 0
-
-    return datosOrdenadosPorPlantas
 
 def asignarHumedadPerfecta():
     global humedadIdealOrdenadaPorPlantas
@@ -302,10 +275,6 @@ def obtenerHumedadPerfecta(planta):
 
             humedadPerfectaPlanta.append(mejorTupla[6])
 
-    #print(humedadPerfectaPlanta)
-
-    #crearGraficasHumedad(humedadPerfectaPlanta,humedadMasGrandeDato,indicePlanta,dias,fechaDeCadaDato,'Humedad mas grande disponible','Humedad perfecta','Humedad mayor posible frente a la "Humedad perfecta"')
-
     return humedadPerfectaPlanta
 
 def crearGraficasHumedad(humedadPerfectaPlanta,humedadMasGrandeDato,indicePlanta,dias,fechaDeCadaDato,indice_1,indice_2,titulo):
@@ -316,8 +285,6 @@ def crearGraficasHumedad(humedadPerfectaPlanta,humedadMasGrandeDato,indicePlanta
     plt.title(titulo)
     plt.xlabel('Indice array')
     plt.ylabel('Humedad')
-
-    #plt.savefig(f"Graficas/Rango_{dias}_dias_comparacion_humedades_planta_{indicePlanta + 1}.png")
 
     # Mostrar leyenda
     plt.legend()
@@ -790,7 +757,7 @@ def main():
             print("Valor predicho:", y_sample_pred[i])
             print("-------------------------")
 
-    model.save('modelo.keras')
+    model.save('greentwin.keras')
 
 
 def desnormalizar_valores(prediciones):

@@ -101,7 +101,6 @@ def dividir_datos_por_planta(datosIOT):
 
         datos_planta.append(datoIOT)
 
-
     #ultima planta
     datos_por_planta_desorganizados.append(datos_planta)
 
