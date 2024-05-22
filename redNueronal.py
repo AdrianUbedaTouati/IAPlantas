@@ -68,10 +68,11 @@ nombreModelo = "modelo1_32x32"
 resultadosROC = []
 datosIOT = []
 datosIOTEntrenamientoImagenes = []
-datosOrdenadosPorPlantas = [[], [], [], [], []]  # Lista para cada planta y calidad del aire
-humedadIdealOrdenadaPorPlantas = [[], [], [], [], []] # Humedad ideal por cada tupla
 
 
+###################
+# Modelo imagenes #
+###################
 
 def load_data():
     X = []
@@ -139,7 +140,6 @@ def obtenerFechaImagenesFormatoSQL(fechasSinProcesar):
         dias.append(fechasSinProcesar[i][0:-9])
         horas.append(fechasSinProcesar[i][11:])
 
-
     for i in range(len(horas)):
         horas[i] = horas[i].replace('_', ':')
 
@@ -157,23 +157,6 @@ def obtenerFechaImagenesFormatoSQL(fechasSinProcesar):
         fechasImagenes.append(datetime(anio, mes, dia, hora, minuto, segundo))
 
     return fechasImagenes
-
-def obtenerDatosIOT():
-    print("-Procensado datos IOT")
-    global datosIOT
-    try:
-        conexion = psycopg2.connect(database = 'PlantasIA', user = 'postgres', password = "@Andriancito2012@")
-        cursor = conexion.cursor()
-        print("Extrayendo Datos:")
-        comando = '''SELECT * FROM public."DatosIOT"
-	            where date >= '2024-02-19 12:30:00' and date <= '2024-03-11 12:00:00'
-            ORDER BY device_id, date, signal_id ASC '''
-        cursor.execute(comando)
-        datosIOT = cursor.fetchall()
-    except Error as e:
-        print("Error en la conexion: ",e)
-
-    return datosIOT
 
 def fecha_mas_cercana(fecha, fechas):
     diferencia_mas_cercana = None
@@ -206,38 +189,141 @@ def filtrarDatosIOTparaImagenes(fechasImagenes,datosIOT):
         datosIOTEntrenamientoImagenes.append(tupla_con_fecha_mas_cercana(fechasImagenes[i], datosIOT[planta_imagen - 1]))
     return datosIOTEntrenamientoImagenes
 
-def dividrDatosIOTporPlanta(datosIOT):
-    global datosOrdenadosPorPlantas
+def eliminar_datos_inecesarios_imagenes(datos_IOT_ordenados_por_planta):
+    datos_IOT_refinados_por_planta = []
+    for planta in datos_IOT_ordenados_por_planta:
 
-    contador = 0
+        tuplasRefinadas = []
+        # Recorremos el array principal
+        for datos in planta:
+            tupla = []
+            # Recorremos cada tupla en el subarray y añadimos el tercer valor a la lista
+            for dato in datos:
+                tupla.append(dato[3])
 
-    lecturaCompleta = []
-    for datoIOT in datosIOT:
-        contador = contador + 1
-        planta = datoIOT[1]
-        lecturaCompleta.append(datoIOT)
-        if (contador == 16 and planta != 5) or (contador == 11 and planta == 5):
-            datosOrdenadosPorPlantas[planta - 1].append(lecturaCompleta)
-            lecturaCompleta = []
-            contador = 0
+            # Convertimos la lista de terceros valores en una tupla
+            tuplasRefinadas.append(tuple(tupla[i] for i in (0, 1, 2, 3, 4, 5, 6, 7, 8)))
 
-    return datosOrdenadosPorPlantas
+        array_convertido = [(float(a), float(b), float(c), float(d), float(e), float(f), float(g), float(h), float(i))
+                            for a, b, c, d, e, f, g, h, i in tuplasRefinadas]
+        datos_IOT_refinados_por_planta.append(array_convertido)
 
-
-def asignarHumedadPerfecta():
-    global humedadIdealOrdenadaPorPlantas
-
-    for i in range(len(datosOrdenadosPorPlantas)-1):
-        print(f"Planta {i+1} procensando...")
-        humedadIdealOrdenadaPorPlantas[i] = obtenerHumedadPerfecta(datosOrdenadosPorPlantas[i])
-
-    return humedadIdealOrdenadaPorPlantas
+    return datos_IOT_refinados_por_planta
 
 def asignarHumedadPerfectaImagenes(planta):
     global humedadIdealOrdenadaPorPlantas
 
     print(f"Planta {planta_imagen-1} procensando...")
     humedadIdealOrdenadaPorPlantas = obtenerHumedadPerfecta(planta)
+
+    return humedadIdealOrdenadaPorPlantas
+
+#######################
+# Modelo sin imagenes #
+#######################
+def dividir_datos_por_planta(datosIOT):
+    datos_por_planta = []
+
+    planta = 1
+    datos_por_planta_desorganizados = []
+    datos_planta = []
+    for datoIOT in datosIOT:
+        if planta != datoIOT[1]:
+            datos_por_planta_desorganizados.append(datos_planta)
+            datos_planta = []
+            planta = datoIOT[1]
+
+        datos_planta.append(datoIOT)
+
+    #ultima planta
+    datos_por_planta_desorganizados.append(datos_planta)
+
+    # borramos el sesonr 4
+    del datos_por_planta_desorganizados[4]
+
+    for datos_planta in datos_por_planta_desorganizados:
+        datos_por_planta.append(juntar_datos_planta(datos_planta))
+
+    return datos_por_planta
+
+def verificar_rango(sensor,valor):
+    resultado = False
+
+    rango_humedad = [0,100]
+    rango_temperatura = [-20, 80]
+    rango_conductividad = [0, 3500]
+    rango_ph = [0, 14]
+
+    rango_nitrogeno = [0, 800]
+    rango_fosforo = [0, 1800]
+    rango_potasio = [0, 1800]
+    rango_salinidad = [0, 2100]
+    rango_tds = [0, 1900]
+
+    if sensor == 1:
+        if valor >= rango_humedad[0] and valor <= rango_humedad[1]:
+            resultado = True
+
+    elif sensor == 2:
+        if valor >= rango_temperatura[0] and valor <= rango_temperatura[1]:
+            resultado = True
+
+    elif sensor == 3:
+        if valor >= rango_conductividad[0] and valor <= rango_conductividad[1]:
+            resultado = True
+
+    elif sensor == 4:
+        if valor >= rango_ph[0] and valor <= rango_ph[1]:
+            resultado = True
+
+    elif sensor == 5:
+        if valor >= rango_nitrogeno[0] and valor <= rango_nitrogeno[1]:
+            resultado = True
+
+    elif sensor == 6:
+        if valor >= rango_fosforo[0] and valor <= rango_fosforo[1]:
+            resultado = True
+
+    elif sensor == 7:
+        if valor >= rango_potasio[0] and valor <= rango_potasio[1]:
+            resultado = True
+
+    elif sensor == 8:
+        if valor >= rango_salinidad[0] and valor <= rango_salinidad[1]:
+            resultado = True
+
+    elif sensor == 9:
+        if valor >= rango_tds[0] and valor <= rango_tds[1]:
+            resultado = True
+
+    else:
+        resultado = True
+
+    return resultado
+
+def juntar_datos_planta(datos_planta):
+    datos_organizados = []
+    contador = 0
+    anterior_sensor = -1;
+    lecturaCompleta = []
+    for datos in datos_planta:
+        # Hay veces que viene el mismo dato de 2 dispositivos distintos veces seguidas super raro, 4 dias depurando
+        if datos[2] != anterior_sensor:
+            contador = contador + 1
+            anterior_sensor = datos[2]
+            lecturaCompleta.append(datos)
+            if contador == 16:
+                lectura_ordenada = sorted(lecturaCompleta, key=lambda x: x[2])
+                datos_organizados.append(lectura_ordenada)
+                lecturaCompleta = []
+                contador = 0
+
+    return datos_organizados
+def asignarHumedadPerfecta(plantas):
+    humedadIdealOrdenadaPorPlantas = []
+
+    for planta in plantas:
+        humedadIdealOrdenadaPorPlantas.append(obtenerHumedadPerfecta(planta))
 
     return humedadIdealOrdenadaPorPlantas
 
@@ -386,27 +472,6 @@ def eliminar_datos_inecesarios(datos_IOT_ordenados_por_planta):
 
     return datos_IOT_refinados_por_planta
 
-def eliminar_datos_inecesarios_imagenes(datos_IOT_ordenados_por_planta):
-    datos_IOT_refinados_por_planta = []
-    for planta in datos_IOT_ordenados_por_planta:
-
-        tuplasRefinadas = []
-        # Recorremos el array principal
-        for datos in planta:
-            tupla = []
-            # Recorremos cada tupla en el subarray y añadimos el tercer valor a la lista
-            for dato in datos:
-                tupla.append(dato[3])
-
-            # Convertimos la lista de terceros valores en una tupla
-            tuplasRefinadas.append(tuple(tupla[i] for i in (0, 1, 2, 3, 4, 5, 6, 7, 8)))
-
-        array_convertido = [(float(a), float(b), float(c), float(d), float(e), float(f), float(g), float(h), float(i))
-                            for a, b, c, d, e, f, g, h, i in tuplasRefinadas]
-        datos_IOT_refinados_por_planta.append(array_convertido)
-
-    return datos_IOT_refinados_por_planta
-
 
 def preparar_datos_red(X,y):
     # Inicializamos un nuevo array para almacenar todas las tuplas
@@ -427,59 +492,91 @@ def preparar_datos_red(X,y):
 
     return nuevo_X,nuevo_y
 
-
-def preparar_datos_normalizados_red(X, y):
+def preparar_datos_normalizados_red(X,y):
     # Inicializamos un nuevo array para almacenar todas las tuplas
-    nuevo_X = []
-    nuevo_y = []
+    datos_por_planta_normalizados = []
 
-    max_X = [100,-1,-1,-1,-1,-1,-1,-1,-1]
-    max_y = 100
+    max_X = [100,-1,-1,-1,-1,-1,-1,-1,-1] #ultimo es el id luego lo borramos
+
+    max_X_por_planta = []
+
+    max_X_anterior = [-1,-1,-1,-1,-1,-1,-1,-1,-1]
+    max_X_por_planta_anterior = [-1,-1,-1,-1,-1,-1,-1,-1,-1]
+    dato_problematico = False
 
     #Buscar los valores maximos
-    for sub_array in X:
+    for planta in X:
+        max_X_planta = [-1,-1,-1,-1,-1,-1,-1,-1,-1] #ultimo es el id luego lo borramos
         # Iteramos sobre cada tupla dentro del array interno y las normalizamos
-        for tupla in sub_array:
+        for tupla in planta:
             contador = 0
             for elemento in tupla:
+                # no tener en cuenta el id
+                if not(verificar_rango(contador + 1,elemento)):
+                    dato_problematico = True
+                    break
+                if contador == 9:
+                    break
+
+                if max_X_planta[contador] < elemento:
+                    max_X_planta[contador] = elemento
+
                 if max_X[contador] < elemento:
                     max_X[contador] = elemento
 
                 contador += 1
 
-    """
-    # Iteramos sobre cada array interno en y
-    for sub_array in y:
-        # Iteramos sobre cada tupla dentro del array interno y las normalizamos
-        for elemento in sub_array:
-            if max_y < elemento:
-                max_y = elemento
-    """
+            if dato_problematico:
+                dato_problematico = False
+                max_X = max_X_anterior
+                max_X_planta = max_X_por_planta_anterior
+            else:
+                max_X_anterior = max_X
+                max_X_por_planta_anterior = max_X_planta
+
+        max_X_por_planta.append(max_X_planta)
+
+    #print("General")
+    #print(max_X)
+    #print("Por planta")
+    #for max_planta in max_X_por_planta:
+    #    print(max_planta)
     # Normalizar
 
     # Iteramos sobre cada array interno en X
-    for sub_array in X:
+    for planta in X:
+        valores_normalizados_planta = []
         # Iteramos sobre cada tupla dentro del array interno y las normalizamos
-        for tupla in sub_array:
+        for tupla in planta:
             contador = 0
             tupla_normalizada = []
             for elemento in tupla:
+                # no tener en cuenta el id
+                if contador == 9:
+                    break
                 valor_normalizado = elemento / max_X[contador]
                 tupla_normalizada.append(valor_normalizado)
                 contador += 1
 
-            nuevo_X.append(tuple(tupla_normalizada))
+            valores_normalizados_planta.append(tuple(tupla_normalizada))
+
+        datos_por_planta_normalizados.append(np.array(valores_normalizados_planta))
 
 
+    #######
+    #Normalizamos la humedad
+    humedad_normalizada = []
     # Iteramos sobre cada array interno en y
-    for sub_array in y:
+    for humedad_planta in y:
+        humedades_planta = []
         # Iteramos sobre cada tupla dentro del array interno y las normalizamos
-        for elemento in sub_array:
-            normalized_tupla = elemento / max_y
-            nuevo_y.append(normalized_tupla)
+        for elemento in humedad_planta:
+            normalized_tupla = elemento / 100
+            humedades_planta.append(normalized_tupla)
+        humedad_normalizada.append(np.array(humedades_planta))
 
-    return np.array(nuevo_X),np.array(nuevo_y)
 
+    return datos_por_planta_normalizados, humedad_normalizada
 
 def cnn_model_IOT(input_shape):
     inputs = layers.Input(shape=input_shape)
@@ -523,6 +620,26 @@ def cnn_model_imagenes_IOT(input_shape_image, input_shape_tuple):
     model = models.Model(inputs=[input_image, input_tuple], outputs=output)
     return model
 
+#########
+# Comun #
+#########
+def obtenerDatosIOT():
+    datosIOT = []
+    print("-Procensado datos IOT")
+    try:
+        conexion = psycopg2.connect(database = 'PlantasIA', user = 'postgres', password = "@Andriancito2012@")
+        cursor = conexion.cursor()
+        print("Extrayendo Datos:")
+        comando = '''SELECT * FROM public."DatosIOT"
+	            where date >= '2024-02-19 12:30:00' and date <= '2024-03-11 12:00:00'
+            ORDER BY device_id, date, signal_id ASC '''
+        cursor.execute(comando)
+        datosIOT = cursor.fetchall()
+    except Error as e:
+        print("Error en la conexion: ",e)
+
+    return datosIOT
+
 @register_keras_serializable()
 def custom_loss(y_true, y_pred):
     # Clip predictions to avoid log(0) or log(1) which are undefined.
@@ -540,6 +657,119 @@ def GuardarValoresROCfichero():
 ##################################################################################
 # Mains program
 ##################################################################################
+
+################
+# Sin Imagenes #
+################
+def mainSinImagenes():
+    print("Recogiendo datos:")
+    datosIOT = obtenerDatosIOT()
+
+    datos_por_planta = dividir_datos_por_planta(datosIOT)
+
+    X_sin_normalizar= eliminar_datos_inecesarios(datos_por_planta)
+
+    y_sin_normalizar = asignarHumedadPerfecta(datos_por_planta)
+
+    X_por_planta,y_por_planta = preparar_datos_normalizados_red(X_sin_normalizar,y_sin_normalizar)
+
+    #Ponemos tanto X como y en un mismo array
+    X = []
+    y = []
+
+    for planta in X_por_planta:
+        for dato in planta:
+            X.append(dato)
+
+    for planta in y_por_planta:
+        for dato in planta:
+            y.append(dato)
+
+    X = np.array(X)
+    y = np.array(y)
+
+    #CV - 10
+    kf = KFold(n_splits=crossValidationSplit, shuffle=True, random_state=123)
+
+    splitEntrenamiento = 1
+
+    for train_index, test_index in kf.split(X, y):
+        X_train, X_test = X[train_index], X[test_index]
+        y_train, y_test = y[train_index], y[test_index]
+
+        print(f'x_train {X_train.shape} x_test {X_test.shape}')
+        print(f'y_train {y_train.shape} y_test {y_test.shape}')
+
+        model = cnn_model_IOT(input_shape_IOT)
+        print(model.summary())
+
+        model.compile(loss=custom_loss, optimizer='adam', metrics=['mae', 'mse'])
+
+        history = model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs, validation_split=0.1, verbose=2)
+        #history = model.fit(train_datagen, steps_per_epoch=len(X_train) // batch_size, epochs=epochs,
+        #                    validation_data=(X_test, y_test), verbose=2)
+
+        # Obtener las métricas del historial
+        acc = history.history['mae']
+        val_acc = history.history['val_mae']
+        loss = history.history['mse']
+        val_loss = history.history['val_mse']
+
+        # Graficar la precisión
+        plt.figure(figsize=(12, 4))
+        plt.subplot(1, 2, 1)
+        plt.plot(acc, label='Training Accuracy')
+        plt.plot(val_acc, label='Validation Accuracy')
+        plt.legend()
+        plt.title('Training and Validation Accuracy')
+        plt.xlabel('Epochs')
+        plt.ylabel('Accuracy')
+
+        # Graficar la pérdida
+        plt.subplot(1, 2, 2)
+        plt.plot(loss, label='Training Loss')
+        plt.plot(val_loss, label='Validation Loss')
+        plt.legend()
+        plt.title('Training and Validation Loss')
+        plt.xlabel('Epochs')
+        plt.ylabel('Loss')
+
+        plt.show()
+
+        #shap.explainers._deep.deep_tf.op_handlers["AddV2"] = shap.explainers._deep.deep_tf.passthrough
+
+        #Visualizar datos del split
+        loss = model.evaluate(X_test, y_test, batch_size=batch_size)
+        y_pred = model.predict(X_test)
+        #resultadosROC.append(roc_auc_score(y_test, y_pred[:, 1],multi_class='ovr'))
+        print(f"Split numero {splitEntrenamiento}:")
+
+        print('Predictions')
+        y_pred_int = y_pred.argmax(axis=1)
+        print(collections.Counter(y_pred_int), '\n')
+
+        # Obtener 10 índices aleatorios del conjunto de datos de prueba
+        random_indices = np.random.choice(len(X_test), size=10, replace=False)
+
+        # Seleccionar 10 ejemplos aleatorios del conjunto de datos de prueba
+        X_sample = X_test[random_indices]
+        y_sample_true = y_test[random_indices]
+
+        # Hacer predicciones en los ejemplos seleccionados
+        y_sample_pred = model.predict(X_sample)
+
+        # Mostrar los resultados
+        for i in range(10):
+            print("Ejemplo", i + 1)
+            print("Valor real:", y_sample_true[i])
+            print("Valor predicho:", y_sample_pred[i])
+            print("-------------------------")
+
+    model.save('greentwin.keras')
+
+################
+# Con Imagenes #
+################
 def mainImagenes():
     print("Recogiendo datos:")
     X_imagenes, fechas, input_shape = load_data()
@@ -548,7 +778,7 @@ def mainImagenes():
 
     datosIOT = obtenerDatosIOT()
 
-    datos_por_Planta = dividrDatosIOTporPlanta(datosIOT)
+    datos_por_Planta = dividir_datos_por_planta(datosIOT)
 
     datosFiltrados = filtrarDatosIOTparaImagenes(fechasImagenes, datos_por_Planta)
 
@@ -664,178 +894,10 @@ def mainImagenes():
 
     model.save('modelo_imagenes.keras')
 
-def main():
-    print("Recogiendo datos:")
-    datosIOT = obtenerDatosIOT()
-
-    datos_por_Planta = dividrDatosIOTporPlanta(datosIOT)
-
-    X_IOT = eliminar_datos_inecesarios(datos_por_Planta)
-
-    y = asignarHumedadPerfecta()
-
-    #Eliminamos el sensor de C02
-    del X_IOT[4]
-    del y[4]
-
-    X,y=preparar_datos_normalizados_red(X_IOT,y)
-
-    #CV - 10
-    kf = KFold(n_splits=crossValidationSplit, shuffle=True, random_state=123)
-
-    splitEntrenamiento = 1
-
-    for train_index, test_index in kf.split(X, y):
-        X_train, X_test = X[train_index], X[test_index]
-        y_train, y_test = y[train_index], y[test_index]
-
-        print(f'x_train {X_train.shape} x_test {X_test.shape}')
-        print(f'y_train {y_train.shape} y_test {y_test.shape}')
-
-        model = cnn_model_IOT(input_shape_IOT)
-        print(model.summary())
-
-        model.compile(loss=custom_loss, optimizer='adam', metrics=['mae', 'mse'])
-
-        history = model.fit(X_train, y_train, batch_size=batch_size, epochs=epochs, validation_split=0.1, verbose=2)
-        #history = model.fit(train_datagen, steps_per_epoch=len(X_train) // batch_size, epochs=epochs,
-        #                    validation_data=(X_test, y_test), verbose=2)
-
-        # Obtener las métricas del historial
-        acc = history.history['mae']
-        val_acc = history.history['val_mae']
-        loss = history.history['mse']
-        val_loss = history.history['val_mse']
-
-        # Graficar la precisión
-        plt.figure(figsize=(12, 4))
-        plt.subplot(1, 2, 1)
-        plt.plot(acc, label='Training Accuracy')
-        plt.plot(val_acc, label='Validation Accuracy')
-        plt.legend()
-        plt.title('Training and Validation Accuracy')
-        plt.xlabel('Epochs')
-        plt.ylabel('Accuracy')
-
-        # Graficar la pérdida
-        plt.subplot(1, 2, 2)
-        plt.plot(loss, label='Training Loss')
-        plt.plot(val_loss, label='Validation Loss')
-        plt.legend()
-        plt.title('Training and Validation Loss')
-        plt.xlabel('Epochs')
-        plt.ylabel('Loss')
-
-        plt.show()
-
-        #shap.explainers._deep.deep_tf.op_handlers["AddV2"] = shap.explainers._deep.deep_tf.passthrough
-
-        #Visualizar datos del split
-        loss = model.evaluate(X_test, y_test, batch_size=batch_size)
-        y_pred = model.predict(X_test)
-        #resultadosROC.append(roc_auc_score(y_test, y_pred[:, 1],multi_class='ovr'))
-        print(f"Split numero {splitEntrenamiento}:")
-
-        print('Predictions')
-        y_pred_int = y_pred.argmax(axis=1)
-        print(collections.Counter(y_pred_int), '\n')
-
-        # Obtener 10 índices aleatorios del conjunto de datos de prueba
-        random_indices = np.random.choice(len(X_test), size=10, replace=False)
-
-        # Seleccionar 10 ejemplos aleatorios del conjunto de datos de prueba
-        X_sample = X_test[random_indices]
-        y_sample_true = y_test[random_indices]
-
-        # Hacer predicciones en los ejemplos seleccionados
-        y_sample_pred = model.predict(X_sample)
-
-        # Mostrar los resultados
-        for i in range(10):
-            print("Ejemplo", i + 1)
-            print("Valor real:", y_sample_true[i])
-            print("Valor predicho:", y_sample_pred[i])
-            print("-------------------------")
-
-    model.save('greentwin.keras')
-
-
-def desnormalizar_valores(prediciones):
-    # Multiplicar por 100
-    array_multiplicado = prediciones * 100
-
-    # Redondear los valores del array multiplicado
-    array_redondeado = np.round(array_multiplicado, 1)
-
-    array_formateado = []
-    for num in array_redondeado:
-        array_formateado.append(num[0])
-
-    return array_formateado
-
-
-def main_probar_modelo():
-    print("Recogiendo datos:")
-    datosIOT = obtenerDatosIOT()
-
-    datos_por_Planta = dividrDatosIOTporPlanta(datosIOT)
-
-    X_IOT = eliminar_datos_inecesarios(datos_por_Planta)
-
-    y = asignarHumedadPerfecta()
-
-    X_planta_objetivo = []
-    y_planta_objetivo = []
-
-    X_planta_objetivo.append(X_IOT[1])
-    y_planta_objetivo.append(y[1])
-
-    X, y = preparar_datos_normalizados_red(X_planta_objetivo, y_planta_objetivo)
-
-    modelo_sin_imagenes = load_model('modelo_sin_imagenes.keras')
-
-    print("Modelo sin imagenes: ")
-
-    y_pred = modelo_sin_imagenes.predict(X)
-
-    print('Predictions')
-    y_pred_int = y_pred.argmax(axis=1)
-    print(collections.Counter(y_pred_int), '\n')
-
-    y_pred_desnormalizado = desnormalizar_valores(y_pred)
-
-    y_desnormalizado = y * 100
-
-    crearGraficasHumedad(y_pred_desnormalizado, y_desnormalizado, 0, 3, 0,'Predicion realizada', 'Humedad perfecta', 'Predicion realizadas por el modelo frente a la "Humedad perfecta"')
-
-    """
-    modelo_imagenes = load_model('modelo_imagenes.keras')
-
-    print("Modelo con imagenes: ")
-
-    y_pred = modelo_imagenes.predict([X)
-
-    print('Predictions')
-    y_pred_int = y_pred.argmax(axis=1)
-    print(collections.Counter(y_pred_int), '\n')
-
-    y_pred_desnormalizado = desnormalizar_valores(y_pred)
-
-    y_desnormalizado = y * 100
-
-    crearGraficasHumedad(y_pred_desnormalizado, y_desnormalizado, 0, 3, 0, 'Predicion realizada', 'Humedad perfecta',
-                         'Predicion realizadas por el modelo frente a la "Humedad perfecta"')
-    """
-
 if __name__ == '__main__':
-    probar_modelo = False
-
     entrenar_con_imagen = False
 
-    if probar_modelo:
-        main_probar_modelo()
+    if entrenar_con_imagen:
+        mainImagenes()
     else:
-        if entrenar_con_imagen:
-            mainImagenes()
-        else:
-            main()
+        mainSinImagenes()

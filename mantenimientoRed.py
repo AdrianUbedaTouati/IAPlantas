@@ -167,7 +167,6 @@ def verificar_rango(sensor,valor):
 
     return resultado
 
-
 def juntar_datos_planta(datos_planta):
     datos_organizados = []
     contador = 0
@@ -477,7 +476,6 @@ ORDER BY device_id, date, signal_id ASC
     #Conexion con SQL
     #Hacer peticion SQL id>ultimo_id
     #Guardar datos en variable global
-
 
 def mantenimiento():
     global datos_nuevos
