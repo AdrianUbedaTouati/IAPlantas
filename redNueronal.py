@@ -497,7 +497,7 @@ def preparar_datos_normalizados_red(X,y):
     # Inicializamos un nuevo array para almacenar todas las tuplas
     datos_por_planta_normalizados = []
 
-    max_X = [100,-1,-1,-1,-1,-1,-1,-1,-1] #ultimo es el id luego lo borramos
+    max_X = [100,40,3492.0, -1,690.0,1641.0,1646.0,1920.0,1746.0] #ultimo es el id luego lo borramos
 
     max_X_por_planta = []
 
@@ -537,8 +537,8 @@ def preparar_datos_normalizados_red(X,y):
 
         max_X_por_planta.append(max_X_planta)
 
-    #print("General")
-    #print(max_X)
+    print("General")
+    print(max_X)
     #print("Por planta")
     #for max_planta in max_X_por_planta:
     #    print(max_planta)

@@ -262,8 +262,8 @@ def preparar_datos_normalizados_red(X):
 
         max_X_por_planta.append(max_X_planta)
 
-    #print("General")
-    #print(max_X)
+    print("General")
+    print(max_X)
     #print("Por planta")
     #for max_planta in max_X_por_planta:
     #    print(max_planta)
@@ -515,7 +515,7 @@ def mantenimiento():
     crear_graficas(humedad_por_plantas, prediccion_por_planta,0,0,fecha_datos_plantas,indice_humedad,indice_predicion,titulo)
 
 if __name__ == '__main__':
-    modelo = load_model('modelo.keras')
+    modelo = load_model('greentwin.keras')
     while True:
         recoger_datos = threading.Thread(target=recoger_datos_nuevos)
         recoger_datos.start()
