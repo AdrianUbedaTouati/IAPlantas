@@ -74,8 +74,8 @@ ultimo_id = 0
 # Variables Graficos #
 ######################
 pagina_abierta = False
-alterta_diferencia_humedad_roja = 40
-alterta_diferencia_humedad_amarilla = 20
+alterta_diferencia_humedad_roja = 25
+alterta_diferencia_humedad_amarilla = 7.5
 num_columnas_pagina = 2
 num_lineas_pagina = 0 #automatico
 
@@ -352,7 +352,7 @@ def crear_graficas(datos_por_plantas,pred_por_plantas,indicePlanta,dias,fecha_da
     diferencia_humedad_plantas = np.round(diferencia_humedad_plantas, 1)
 
     for i in range(len(datos_por_plantas)):
-        if diferencia_humedad_plantas[i] >= alterta_diferencia_humedad_roja or humedad_actual_por_planta[i] < 25:
+        if diferencia_humedad_plantas[i] >= alterta_diferencia_humedad_roja or humedad_actual_por_planta[i] < 20:
             nombres[i] = nombres[i] + "🔴"
         elif diferencia_humedad_plantas[i] >= alterta_diferencia_humedad_amarilla:
             nombres[i] = nombres[i] + "🟡"
@@ -376,8 +376,8 @@ def crear_graficas(datos_por_plantas,pred_por_plantas,indicePlanta,dias,fecha_da
             dato_por_planta = datos_por_plantas[c]
             pred_por_planta = pred_por_plantas[c]
 
-            fig.add_trace(go.Scatter(x=fecha_datos, y=dato_por_planta, mode='lines', name=indice_1, marker=dict(color = color_azul)), row = i+1, col = j+1)
-            fig.add_trace(go.Scatter(x=fecha_datos, y=pred_por_planta, mode='lines', name=indice_2, marker=dict(color = color_verde)), row=i + 1, col=j + 1)
+            fig.add_trace(go.Scatter(x=fecha_datos, y=dato_por_planta, mode='lines', name=indice_1, marker=dict(color = color_azul)), row = i + 1, col = j + 1)
+            fig.add_trace(go.Scatter(x=fecha_datos, y=pred_por_planta, mode='lines', name=indice_2, marker=dict(color = color_verde)), row= i + 1, col=j + 1)
             c= c+1
 
     # Personalizar el diseño del gráfico
@@ -508,7 +508,8 @@ def mantenimiento():
     indice_predicion = 'Prediccion IA'
     titulo = 'Predicciones realizadas por el modelo frente a la humedad real de la planta'
 
-    crear_graficas(humedad_por_plantas, prediccion_por_planta,0,0,fecha_datos_plantas,indice_humedad,indice_predicion,titulo)
+    crear_graficas(humedad_por_plantas, prediccion_por_planta,0,0,fecha_datos_plantas,
+                   indice_humedad,indice_predicion,titulo)
 
 if __name__ == '__main__':
     modelo = load_model('greentwin.keras')

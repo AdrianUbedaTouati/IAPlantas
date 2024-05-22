@@ -736,8 +736,6 @@ def mainSinImagenes():
 
         plt.show()
 
-        #shap.explainers._deep.deep_tf.op_handlers["AddV2"] = shap.explainers._deep.deep_tf.passthrough
-
         #Visualizar datos del split
         loss = model.evaluate(X_test, y_test, batch_size=batch_size)
         y_pred = model.predict(X_test)
