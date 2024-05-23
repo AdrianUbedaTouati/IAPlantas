@@ -512,7 +512,7 @@ def mantenimiento():
                    indice_humedad,indice_predicion,titulo)
 
 if __name__ == '__main__':
-    modelo = load_model('greentwin.keras')
+    modelo = load_model('greentwin_8.keras')
     while True:
         recoger_datos = threading.Thread(target=recoger_datos_nuevos)
         recoger_datos.start()

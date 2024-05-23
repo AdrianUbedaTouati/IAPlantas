@@ -29,10 +29,10 @@ from psycopg2 import Error
 
 #Entrenamiento
 batch_size = 64
-epochs = 200
+epochs = 100
 crossValidationSplit = 10
-busquedaMejorTuplaDias = 3
-validation_split = 0.1
+busquedaMejorTuplaDias = 7
+validation_split = 0.10
 
 planta_imagen = 1
 img_rows, img_cols = 64, 64
@@ -583,9 +583,7 @@ def cnn_model_IOT(input_shape):
     inputs = layers.Input(shape=input_shape)
 
     x = layers.Dense(256, activation='relu')(inputs)
-    x = layers.Dropout(0.5)(x)
     x = layers.Dense(128, activation='relu')(x)
-    x = layers.Dropout(0.5)(x)
     x = layers.Dense(64,  activation='relu')(x)
     x = layers.Dense(32, activation='relu')(x)
 
@@ -749,13 +747,13 @@ def mainSinImagenes():
     for loss in resultadosLossModelos:
         if loss < loss_mas_bajo:
             loss_mas_bajo = loss
-            model = modelos[contador]
+            modelos[contador].save(f'greentwin_{contador}.keras')
 
         contador = contador + 1
 
 
     print(loss_mas_bajo)
-    model.save('greentwin.keras')
+    #model.save('greentwin.keras')
 
 ################
 # Con Imagenes #
