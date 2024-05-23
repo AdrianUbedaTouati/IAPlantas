@@ -1,51 +1,28 @@
-import sys
-
 import os
+
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
-import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 import glob
 import collections
 import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
 from datetime import datetime, timedelta
-import calendar, locale
+import  locale
 
-from keras.src.saving import load_model, register_keras_serializable
-
+from keras.src.saving import register_keras_serializable
 locale.setlocale(locale.LC_ALL,'es_ES')
 
-import sklearn
-from sklearn.model_selection import train_test_split, StratifiedKFold, KFold
-from sklearn import metrics
-from sklearn.metrics import roc_auc_score
-from sklearn.model_selection import cross_val_score
-
+from sklearn.model_selection import KFold
 import tensorflow as tf
-from tensorflow import keras
 from tensorflow.keras.preprocessing import image
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras import models
 from tensorflow.keras import layers
-
-from keras.layers import Dropout
 
 #Wilcoxon Test
 import warnings
 warnings.filterwarnings('ignore')
 
-from scipy.stats import wilcoxon
-
-#Utilizado para guardar modelos y cargarlos
-import joblib
-
-import shap
-
 import cv2
-
-from PIL import Image
 
 import psycopg2
 from psycopg2 import Error
@@ -55,7 +32,7 @@ batch_size = 64
 epochs = 200
 crossValidationSplit = 10
 busquedaMejorTuplaDias = 3
-validation_split = 0.05
+validation_split = 0.1
 
 planta_imagen = 1
 img_rows, img_cols = 64, 64
@@ -239,9 +216,6 @@ def dividir_datos_por_planta(datosIOT):
 
     #ultima planta
     datos_por_planta_desorganizados.append(datos_planta)
-
-    # borramos el sesonr 4
-    del datos_por_planta_desorganizados[4]
 
     for datos_planta in datos_por_planta_desorganizados:
         datos_por_planta.append(juntar_datos_planta(datos_planta))
@@ -609,11 +583,10 @@ def cnn_model_IOT(input_shape):
     inputs = layers.Input(shape=input_shape)
 
     x = layers.Dense(256, activation='relu')(inputs)
-
+    x = layers.Dropout(0.5)(x)
     x = layers.Dense(128, activation='relu')(x)
-
+    x = layers.Dropout(0.5)(x)
     x = layers.Dense(64,  activation='relu')(x)
-
     x = layers.Dense(32, activation='relu')(x)
 
     outputs = layers.Dense(1,activation='sigmoid')(x)
@@ -632,9 +605,13 @@ def obtenerDatosIOT():
         conexion = psycopg2.connect(database = 'PlantasIA', user = 'postgres', password = "@Andriancito2012@")
         cursor = conexion.cursor()
         print("Extrayendo Datos:")
-        comando = '''SELECT * FROM public."DatosIOT"
-	            where date <= '2024-03-5 24:00:00'
-            ORDER BY device_id, date, signal_id ASC '''
+        comando = '''
+SELECT * 
+FROM public."DatosIOT"
+WHERE date <= '2024-03-05 23:59:59' 
+  AND device_id IN (1, 2, 3, 4)
+ORDER BY device_id, date, signal_id ASC; 
+'''
         cursor.execute(comando)
         datosIOT = cursor.fetchall()
     except Error as e:
@@ -789,26 +766,6 @@ def mainImagenes():
 
     fechasImagenes = obtenerFechaImagenesFormatoSQL(fechas)
 
-    datosIOT = obtenerDatosIOT()
-
-    datos_por_Planta = dividir_datos_por_planta(datosIOT)
-
-    datosFiltrados = filtrarDatosIOTparaImagenes(fechasImagenes, datos_por_Planta)
-
-    print(f"Numero de datos esperados :{len(datosFiltrados)}")
-    print(f"Numero de datos devueltos :{len(X_imagenes)}")
-
-    arreglo = []
-
-    arreglo.append(datosFiltrados)
-
-    X_IOT = eliminar_datos_inecesarios_imagenes(arreglo)
-
-    humedades = asignarHumedadPerfectaImagenes(datosFiltrados)
-
-    y = []
-
-    y.append(humedades)
     """
     #Mostrar imagenes
     print(X_IOT.shape, 'train samples')
@@ -817,12 +774,32 @@ def mainImagenes():
     print(epochs, 'epochs')
     """
 
-    #print(f"Numero de datos esperados :{len(X_imagenes)}")
-    #print(f"Numero de datos devueltos :{len(X_IOT)}")
-    #print(f"Numero de datos devueltos :{len(y)}")
-    #sys.exit(0)
+    datosIOT = obtenerDatosIOT()
 
-    X, y = preparar_datos_normalizados_red(X_IOT, y)
+    datos_por_planta = dividir_datos_por_planta(datosIOT)
+
+    datosFiltrados = filtrarDatosIOTparaImagenes(fechasImagenes, datos_por_planta)
+
+    X_sin_normalizar = eliminar_datos_inecesarios(datosFiltrados)
+
+    y_sin_normalizar = asignarHumedadPerfecta(datosFiltrados)
+
+    X_por_planta, y_por_planta = preparar_datos_normalizados_red(X_sin_normalizar, y_sin_normalizar)
+
+    # Ponemos tanto X como y en un mismo array
+    X = []
+    y = []
+
+    for planta in X_por_planta:
+        for dato in planta:
+            X.append(dato)
+
+    for planta in y_por_planta:
+        for dato in planta:
+            y.append(dato)
+
+    X = np.array(X)
+    y = np.array(y)
 
     # CV - 10
     kf = KFold(n_splits=crossValidationSplit, shuffle=True, random_state=123)
@@ -905,7 +882,7 @@ def mainImagenes():
             print("Valor predicho:", y_sample_pred[i])
             print("-------------------------")
 
-    model.save('modelo_imagenes.keras')
+    model.save('greentwin_img.keras')
 
 if __name__ == '__main__':
     entrenar_con_imagen = False
