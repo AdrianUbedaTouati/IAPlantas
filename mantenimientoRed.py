@@ -1,4 +1,3 @@
-import sys
 import os
 import threading
 import time
@@ -7,49 +6,18 @@ import numpy
 
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
-import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
-import glob
-import collections
-import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
-from datetime import datetime, timedelta
-import calendar, locale
+import locale
 
 from keras.src.saving import load_model, register_keras_serializable
 
 locale.setlocale(locale.LC_ALL,'es_ES')
 
-import sklearn
-from sklearn.model_selection import train_test_split, StratifiedKFold, KFold
-from sklearn import metrics
-from sklearn.metrics import roc_auc_score
-from sklearn.model_selection import cross_val_score
-
 import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras.preprocessing import image
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
-from tensorflow.keras import models
-from tensorflow.keras import layers
-
-from keras.layers import Dropout
 
 #Wilcoxon Test
 import warnings
 warnings.filterwarnings('ignore')
-
-from scipy.stats import wilcoxon
-
-#Utilizado para guardar modelos y cargarlos
-import joblib
-
-import shap
-
-import cv2
-
-from PIL import Image
 
 import psycopg2
 from psycopg2 import Error
@@ -57,8 +25,6 @@ from psycopg2 import Error
 #Graficas
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from IPython.display import display, Javascript
-import plotly.io as pio
 import webbrowser
 
 ######################
@@ -512,7 +478,7 @@ def mantenimiento():
                    indice_humedad,indice_predicion,titulo)
 
 if __name__ == '__main__':
-    modelo = load_model('greentwin_8.keras')
+    modelo = load_model('greentwin.keras')
     while True:
         recoger_datos = threading.Thread(target=recoger_datos_nuevos)
         recoger_datos.start()

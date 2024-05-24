@@ -29,8 +29,8 @@ from psycopg2 import Error
 
 #Entrenamiento
 batch_size = 64
-epochs = 100
-crossValidationSplit = 10
+epochs = 20
+crossValidationSplit = 2
 busquedaMejorTuplaDias = 7
 validation_split = 0.10
 
@@ -163,39 +163,14 @@ def tupla_con_fecha_mas_cercana(elemento, plantasOrdenadas):
     return tupla_mas_cercana
 
 def filtrarDatosIOTparaImagenes(fechasImagenes,datosIOT):
-    global datosIOTEntrenamientoImagenes
     for i in range(len(fechasImagenes)):
         datosIOTEntrenamientoImagenes.append(tupla_con_fecha_mas_cercana(fechasImagenes[i], datosIOT[planta_imagen - 1]))
-    return datosIOTEntrenamientoImagenes
 
-def eliminar_datos_inecesarios_imagenes(datos_IOT_ordenados_por_planta):
-    datos_IOT_refinados_por_planta = []
-    for planta in datos_IOT_ordenados_por_planta:
+    arreglo = []
 
-        tuplasRefinadas = []
-        # Recorremos el array principal
-        for datos in planta:
-            tupla = []
-            # Recorremos cada tupla en el subarray y añadimos el tercer valor a la lista
-            for dato in datos:
-                tupla.append(dato[3])
+    arreglo.append(datosIOTEntrenamientoImagenes)
 
-            # Convertimos la lista de terceros valores en una tupla
-            tuplasRefinadas.append(tuple(tupla[i] for i in (0, 1, 2, 3, 4, 5, 6, 7, 8)))
-
-        array_convertido = [(float(a), float(b), float(c), float(d), float(e), float(f), float(g), float(h), float(i))
-                            for a, b, c, d, e, f, g, h, i in tuplasRefinadas]
-        datos_IOT_refinados_por_planta.append(array_convertido)
-
-    return datos_IOT_refinados_por_planta
-
-def asignarHumedadPerfectaImagenes(planta):
-    global humedadIdealOrdenadaPorPlantas
-
-    print(f"Planta {planta_imagen-1} procensando...")
-    humedadIdealOrdenadaPorPlantas = obtenerHumedadPerfecta(planta)
-
-    return humedadIdealOrdenadaPorPlantas
+    return arreglo
 
 #######################
 # Modelo sin imagenes #
@@ -762,7 +737,17 @@ def mainImagenes():
     print("Recogiendo datos:")
     X_imagenes, fechas, input_shape = load_data()
 
-    fechasImagenes = obtenerFechaImagenesFormatoSQL(fechas)
+    """
+    datosIOT = obtenerDatosIOT()
+
+    datos_por_planta = dividir_datos_por_planta(datosIOT)
+
+    X_sin_normalizar = eliminar_datos_inecesarios(datos_por_planta)
+
+    y_sin_normalizar = asignarHumedadPerfecta(datos_por_planta)
+
+    X_por_planta, y_por_planta = preparar_datos_normalizados_red(X_sin_normalizar, y_sin_normalizar)
+    """
 
     """
     #Mostrar imagenes
@@ -771,12 +756,17 @@ def mainImagenes():
     print(input_shape, 'input_shape')
     print(epochs, 'epochs')
     """
+    fechasImagenes = obtenerFechaImagenesFormatoSQL(fechas)
 
     datosIOT = obtenerDatosIOT()
 
     datos_por_planta = dividir_datos_por_planta(datosIOT)
 
     datosFiltrados = filtrarDatosIOTparaImagenes(fechasImagenes, datos_por_planta)
+
+    arreglo = []
+
+    arreglo.append(datosFiltrados)
 
     X_sin_normalizar = eliminar_datos_inecesarios(datosFiltrados)
 
@@ -819,9 +809,7 @@ def mainImagenes():
 
         model.compile(loss=custom_loss, optimizer='adam', metrics=['mae', 'mse'])
 
-        history = model.fit([X_imagenes_train,X_train], y_train, batch_size=batch_size, epochs=epochs, validation_split=0.1, verbose=2)
-        # history = model.fit(train_datagen, steps_per_epoch=len(X_train) // batch_size, epochs=epochs,
-        #                    validation_data=(X_test, y_test), verbose=2)
+        history = model.fit([X_imagenes_train,X_train], y_train, batch_size=batch_size, epochs=epochs, validation_split=validation_split, verbose=2)
 
         # Obtener las métricas del historial
         acc = history.history['mae']
@@ -883,7 +871,7 @@ def mainImagenes():
     model.save('greentwin_img.keras')
 
 if __name__ == '__main__':
-    entrenar_con_imagen = False
+    entrenar_con_imagen = True
 
     if entrenar_con_imagen:
         mainImagenes()

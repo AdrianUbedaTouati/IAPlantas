@@ -23,5 +23,7 @@ Podriamos hacer un sistema de recompensa en el que intentamos que la conductivid
 
 Viendo el propio historial, ver cual a sido el mejor estado de la planta y ponerla como parametro de salida y ver la relacion que tiene con el resto de valores
 
+def calcular_puntuacion(tuplas):
+
 
 
