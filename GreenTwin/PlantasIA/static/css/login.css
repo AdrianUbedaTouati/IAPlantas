@@ -1,0 +1,121 @@
+main.login_box{
+width: 200px;
+position: relative;
+margin: auto!important;
+top: 50%;
+-ms-transform: translateY(-50%);
+transform: translateY(-50%);
+background-color: #F6F6F6;
+padding-top: 30px;
+padding-left: 50px;
+padding-right: 50px;
+padding-bottom: 20px;
+border-radius: 30px;
+box-shadow: rgba(45, 35, 66, 0.4) 0 2px 4px,rgba(45, 35, 66, 0.3) 0 7px
+13px -3px,#D6D6E7 0 -3px 0 inset;
+}
+img#logo{
+position: relative;
+box-sizing: border-box;
+margin: auto;
+display: block;
+ width: 85px;
+}
+h1.title_login{
+font-weight: 400;
+font-size: calc(1.3rem + .6vw);
+text-align: center;
+color: var(--bs-heading-color,inherit);
+}
+html{
+background-color: #F5F5F5;
+background-size: calc(100vw);
+background-repeat: no-repeat;
+background-image: url("/static/RD_ToolsApp/img/background-logo.png");
+background-position: center;
+text-align: center;
+}
+.form-titles{
+position: relative;
+box-sizing: border-box;
+display: block;
+}
+.formInput{
+margin-bottom: -1px;
+border-bottom-right-radius: 0;
+font-family: system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue","Noto Sans","Liberation Sans",Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol","Noto Color Emoji";
+border-bottom-left-radius: 0;
+padding:1rem 0.75rem;
+height: calc(3.5rem + calc(var(--bs-border-width) * 2));
+line-height: 1.25;
+display: block;
+width: 100%;
+font-size: 1rem;
+font-weight: 400;
+color: #212529;
+background-color: #fff;
+background-clip: padding-box;
+border: 1px solid #dee2e6;
+appearance: none;
+transition: border-color .15s ease-in-out,box-shadow .15s ease-in-out;
+font-family: inherit;
+margin: 0;
+box-sizing: border-box;
+}
+input#upinput {
+border-radius: 10px 10px 0px 0px;
+}
+input#downinput {
+border-radius: 0px 0px 10px 10px;
+}
+div.checkbox_div {
+margin: 12px;
+}
+#sans_font_family {
+font-family: system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue","Noto Sans","Liberation Sans",Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol","Noto Color Emoji";
+}
+.loggin_button {
+align-items: center;
+appearance: none;
+background-color: #FCFCFD;
+border-radius: 4px;
+border-width: 0;
+box-shadow: rgba(45, 35, 66, 0.4) 0 2px 4px,rgba(45, 35, 66, 0.3) 0 7px
+13px -3px,#D6D6E7 0 -3px 0 inset;
+box-sizing: border-box;
+color: #36395A;
+cursor: pointer;
+display: inline-flex;
+font-family: "JetBrains Mono",monospace;
+height: 48px;
+width: 100%;
+justify-content: center;
+line-height: 1;
+list-style: none;
+overflow: hidden;
+padding-left: 16px;
+padding-right: 16px;
+position: relative;
+text-align: left;
+text-decoration: none;
+transition: box-shadow .15s,transform .15s;
+user-select: none;
+-webkit-user-select: none;
+touch-action: manipulation;
+white-space: nowrap;
+will-change: box-shadow,transform;
+font-size: 18px;
+}
+.loggin_button:focus {
+box-shadow: #D6D6E7 0 0 0 1.5px inset, rgba(45, 35, 66, 0.4) 0 2px 4px,
+rgba(45, 35, 66, 0.3) 0 7px 13px -3px, #D6D6E7 0 -3px 0 inset;
+}
+.loggin_button:hover {
+box-shadow: rgba(45, 35, 66, 0.4) 0 4px 8px, rgba(45, 35, 66, 0.3) 0 7px
+13px -3px, #D6D6E7 0 -3px 0 inset;
+transform: translateY(-2px);
+}
+.loggin_button:active {
+box-shadow: #D6D6E7 0 3px 7px inset;
+transform: translateY(2px);
+}

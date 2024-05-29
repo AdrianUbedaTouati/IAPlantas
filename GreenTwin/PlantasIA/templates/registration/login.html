@@ -1,0 +1,31 @@
+<html>
+<head>
+{% load static %}
+<link rel="stylesheet" href="{% static 'css/login.css' %}">
+</head>
+<body>
+<main class="login_box">
+<form action="" method="post">
+{% csrf_token %}
+<img id="logo" src="{% static 'img/logo.jpg' %}">
+<h1 class="title_login" id="sans_font_family">Por favor
+identifíquese</h1>
+<div class="form-titles">
+<input type="text" name="username" autofocus=""
+autocapitalize="none" autocomplete="username" maxlength="150" required=""
+class="formInput" id="upinput" placeholder="Usuario">
+<input type="password" name="password"
+autocomplete="current-password" required="" class="formInput" id="downinput"
+placeholder="Contraseña">
+</div>
+<div class="checkbox_div">
+<label id="sans_font_family">
+<input type="checkbox" value="remember-me"> Recordarme
+</label>
+</div>
+<input class="loggin_button" id="sans_font_family"
+type="submit" value="Iniciar Sesión">
+</form>
+</main>
+</body>
+</html>
